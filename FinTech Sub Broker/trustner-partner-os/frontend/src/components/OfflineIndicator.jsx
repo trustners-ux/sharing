@@ -39,7 +39,7 @@ function OfflineIndicator() {
         <span>You are offline. Some features may be limited.</span>
       </div>
 
-      <style jsx>{`
+      <style>{`
         @keyframes fade-in {
           from {
             opacity: 0;

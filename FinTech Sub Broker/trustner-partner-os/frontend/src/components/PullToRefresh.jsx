@@ -137,7 +137,7 @@ function PullToRefresh({ onRefresh, children }) {
         {children}
       </div>
 
-      <style jsx>{`
+      <style>{`
         @keyframes spin {
           from {
             transform: rotate(0deg);

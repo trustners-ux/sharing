@@ -55,6 +55,15 @@ export const formatChange = (value) => {
   return `${sign}${num.toFixed(2)}%`
 }
 
+export const formatIndianNumber = (value) => {
+  if (value === null || value === undefined) return '0'
+
+  const num = typeof value === 'string' ? parseFloat(value) : value
+  if (isNaN(num)) return '0'
+
+  return new Intl.NumberFormat('en-IN').format(num)
+}
+
 export const shortNumber = (value) => {
   if (!value) return '0'
 
