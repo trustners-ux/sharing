@@ -9,7 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { parse } from 'csv-parse/sync';
 import * as fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
-import * as dayjs from 'dayjs';
+import dayjs from 'dayjs';
 
 /**
  * Commissions Service - THE HEART OF THE SYSTEM
