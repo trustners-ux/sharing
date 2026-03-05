@@ -123,8 +123,11 @@ async function bootstrap() {
     logger.log('Swagger documentation available at http://localhost:' + port + '/api/docs');
   }
 
-  // Health check endpoint (before rate limiting)
-  app.get('/health', () => ({ status: 'ok', timestamp: new Date().toISOString() }));
+  // Health check endpoint (using underlying Express instance)
+  const expressApp = app.getHttpAdapter().getInstance();
+  expressApp.get('/health', (req: any, res: any) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
 
   await app.listen(port);
   logger.log(`✓ Application started on port ${port} in ${env} mode`);
