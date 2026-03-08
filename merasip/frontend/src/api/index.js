@@ -15,13 +15,39 @@ const handleResponse = async (res) => {
   return res.json()
 }
 
+// Fetch with timeout + retry for Render cold-starts (free tier spins down)
+const fetchWithRetry = async (url, options, { retries = 2, timeout = 120000 } = {}) => {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), timeout)
+    try {
+      const res = await fetch(url, { ...options, signal: controller.signal })
+      clearTimeout(timer)
+      if ((res.status === 502 || res.status === 503) && attempt < retries) {
+        // Server likely cold-starting — wait and retry
+        await new Promise(r => setTimeout(r, 3000))
+        continue
+      }
+      return res
+    } catch (err) {
+      clearTimeout(timer)
+      if (err.name === 'AbortError') {
+        if (attempt < retries) { await new Promise(r => setTimeout(r, 2000)); continue }
+        throw new Error('Request timed out. The server may be starting up — please try again in a minute.')
+      }
+      if (attempt < retries) { await new Promise(r => setTimeout(r, 2000)); continue }
+      throw new Error('Unable to reach server. Please check your connection and try again.')
+    }
+  }
+}
+
 export const api = {
   // === CAS Parser (public) ===
   parseCAS: (file, password) => {
     const form = new FormData()
     form.append('file', file)
     if (password) form.append('password', password)
-    return fetch(`${BASE}/api/parse-cas`, { method: 'POST', body: form }).then(handleResponse)
+    return fetchWithRetry(`${BASE}/api/parse-cas`, { method: 'POST', body: form }, { retries: 2, timeout: 120000 }).then(handleResponse)
   },
 
   // === Reports (advisor auth) ===

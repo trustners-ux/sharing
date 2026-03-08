@@ -66,7 +66,12 @@ export default function ReviewPage() {
       })
       setStep('result')
     } catch (err) {
-      setError(err.message || 'Failed to parse PDF. Please check the file and try again.')
+      const msg = err.message || ''
+      if (msg.includes('timed out') || msg.includes('Unable to reach') || msg.includes('Load Failed') || msg.includes('load failed') || msg.includes('fetch')) {
+        setError('Server is starting up (free tier). Please wait 30 seconds and try again. Your file is safe.')
+      } else {
+        setError(msg || 'Failed to parse PDF. Please check the file and try again.')
+      }
       setStep('upload')
     }
   }
@@ -226,10 +231,42 @@ export default function ReviewPage() {
         {/* Loading */}
         {step === 'loading' && (
           <div style={{ textAlign: 'center', padding: 64 }}>
-            <div style={{ fontSize: 40, marginBottom: 16 }}>⏳</div>
-            <div style={{ fontWeight: 700, color: C.navy, fontSize: 16 }}>Analysing your portfolio...</div>
-            <div style={{ color: C.muted, fontSize: 12, marginTop: 8 }}>
+            {/* Animated spinner */}
+            <div style={{ position: 'relative', width: 64, height: 64, margin: '0 auto 24px' }}>
+              <div style={{
+                width: 64, height: 64, borderRadius: '50%',
+                border: `4px solid ${C.navyPale}`,
+                borderTopColor: C.navy,
+                animation: 'spin 1s linear infinite',
+              }} />
+              <div style={{
+                position: 'absolute', top: '50%', left: '50%',
+                transform: 'translate(-50%, -50%)',
+                fontSize: 22,
+              }}>📊</div>
+            </div>
+            <style>{`@keyframes spin { to { transform: rotate(360deg) } } @keyframes pulse { 0%,100% { opacity: .5 } 50% { opacity: 1 } }`}</style>
+            <div style={{ fontWeight: 700, color: C.navy, fontSize: 18, fontFamily: 'Georgia, serif' }}>
+              Analysing your portfolio...
+            </div>
+            <div style={{
+              color: C.muted, fontSize: 13, marginTop: 10,
+              animation: 'pulse 2s ease-in-out infinite',
+            }}>
               Extracting fund data and running rebalancing analysis
+            </div>
+            <div style={{
+              marginTop: 24, display: 'flex', justifyContent: 'center', gap: 6,
+            }}>
+              {[0, 1, 2, 3].map(i => (
+                <div key={i} style={{
+                  width: 8, height: 8, borderRadius: '50%', background: C.navy,
+                  animation: `pulse 1.4s ease-in-out ${i * 0.2}s infinite`,
+                }} />
+              ))}
+            </div>
+            <div style={{ color: C.muted, fontSize: 11, marginTop: 20, opacity: 0.7 }}>
+              This may take 15–30 seconds if the server is starting up
             </div>
           </div>
         )}
