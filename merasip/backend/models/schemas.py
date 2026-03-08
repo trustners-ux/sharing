@@ -185,3 +185,34 @@ class AdvisorLoginRequest(BaseModel):
 class VerifyOTPRequest(BaseModel):
     email: str
     token: str
+
+
+# =============================================================================
+# EMPLOYEE MANAGEMENT SCHEMAS
+# =============================================================================
+
+class PasswordLoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
+class EmployeeCreate(BaseModel):
+    name: str
+    email: str
+    password: str
+    designation: str
+    department: Optional[str] = None
+    role: str = "employee"
+
+
+class EmployeeUpdate(BaseModel):
+    name: Optional[str] = None
+    designation: Optional[str] = None
+    department: Optional[str] = None
+    role: Optional[str] = None
+    status: Optional[str] = None

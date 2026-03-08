@@ -120,4 +120,44 @@ export const api = {
     fetch(`${BASE}/api/review/queue/${id}/generate`, {
       method: 'POST', headers: headers(true)
     }).then(handleResponse),
+
+  // === Password Auth ===
+  loginWithPassword: (email, password) =>
+    fetch(`${BASE}/api/auth/login`, {
+      method: 'POST', headers: headers(),
+      body: JSON.stringify({ email, password })
+    }).then(handleResponse),
+
+  changePassword: (current_password, new_password) =>
+    fetch(`${BASE}/api/auth/change-password`, {
+      method: 'POST', headers: headers(true),
+      body: JSON.stringify({ current_password, new_password })
+    }).then(handleResponse),
+
+  // === Employees ===
+  getEmployees: () =>
+    fetch(`${BASE}/api/employees`, { headers: headers(true) }).then(handleResponse),
+
+  getEmployee: (id) =>
+    fetch(`${BASE}/api/employees/${id}`, { headers: headers(true) }).then(handleResponse),
+
+  createEmployee: (data) =>
+    fetch(`${BASE}/api/employees`, {
+      method: 'POST', headers: headers(true),
+      body: JSON.stringify(data)
+    }).then(handleResponse),
+
+  updateEmployee: (id, data) =>
+    fetch(`${BASE}/api/employees/${id}`, {
+      method: 'PATCH', headers: headers(true),
+      body: JSON.stringify(data)
+    }).then(handleResponse),
+
+  resetEmployeePassword: (id) =>
+    fetch(`${BASE}/api/employees/${id}/reset-password`, {
+      method: 'POST', headers: headers(true)
+    }).then(handleResponse),
+
+  getActivityLog: () =>
+    fetch(`${BASE}/api/employees/activity`, { headers: headers(true) }).then(handleResponse),
 }

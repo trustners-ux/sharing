@@ -8,27 +8,30 @@ export function AuthProvider({ children }) {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    // Restore session from localStorage
     const token = localStorage.getItem('advisor_token')
     const userData = localStorage.getItem('advisor_user')
     if (token && userData) {
-      try {
-        setUser(JSON.parse(userData))
-      } catch {
-        localStorage.removeItem('advisor_token')
-        localStorage.removeItem('advisor_user')
-      }
+      try { setUser(JSON.parse(userData)) } catch { localStorage.removeItem('advisor_token'); localStorage.removeItem('advisor_user') }
     }
     setIsLoading(false)
   }, [])
 
   const login = async (email) => {
-    const result = await api.advisorLogin(email)
-    return result
+    return await api.advisorLogin(email)
   }
 
   const verifyOTP = async (email, otp) => {
     const result = await api.verifyOTP(email, otp)
+    if (result.access_token) {
+      localStorage.setItem('advisor_token', result.access_token)
+      localStorage.setItem('advisor_user', JSON.stringify(result.user))
+      setUser(result.user)
+    }
+    return result
+  }
+
+  const loginWithPassword = async (email, password) => {
+    const result = await api.loginWithPassword(email, password)
     if (result.access_token) {
       localStorage.setItem('advisor_token', result.access_token)
       localStorage.setItem('advisor_user', JSON.stringify(result.user))
@@ -45,9 +48,10 @@ export function AuthProvider({ children }) {
 
   const isAuthenticated = !!user
   const isManager = user?.role === 'manager' || user?.role === 'admin'
+  const isAdmin = user?.role === 'admin'
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated, isManager, isLoading, login, verifyOTP, logout }}>
+    <AuthContext.Provider value={{ user, isAuthenticated, isManager, isAdmin, isLoading, login, verifyOTP, loginWithPassword, logout }}>
       {children}
     </AuthContext.Provider>
   )

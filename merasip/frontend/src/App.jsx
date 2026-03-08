@@ -10,6 +10,9 @@ const RebalancePage = lazy(() => import('./pages/RebalancePage'))
 const NavEngine = lazy(() => import('./pages/NavEngine'))
 const ReviewManagerPage = lazy(() => import('./pages/ReviewManagerPage'))
 const LoginPage = lazy(() => import('./pages/LoginPage'))
+const TeamPage = lazy(() => import('./pages/TeamPage'))
+const AdminPanel = lazy(() => import('./pages/AdminPanel'))
+const ProfilePage = lazy(() => import('./pages/ProfilePage'))
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'))
 const TermsPage = lazy(() => import('./pages/TermsPage'))
 
@@ -43,6 +46,9 @@ export default function App() {
             <Route path="/advisor/rebalance" element={<PrivateRoute><RebalancePage /></PrivateRoute>} />
             <Route path="/advisor/nav" element={<PrivateRoute><NavEngine /></PrivateRoute>} />
             <Route path="/advisor/review-queue" element={<PrivateRoute requireManager><ReviewManagerPage /></PrivateRoute>} />
+            <Route path="/advisor/team" element={<PrivateRoute><TeamPage /></PrivateRoute>} />
+            <Route path="/advisor/admin" element={<PrivateRoute requireAdmin><AdminPanel /></PrivateRoute>} />
+            <Route path="/advisor/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
 
             {/* Default redirect */}
             <Route path="/" element={<Navigate to="/review" replace />} />

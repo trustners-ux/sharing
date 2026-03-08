@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 import { api } from '../api'
 import PortfolioCard from '../components/PortfolioCard'
 import ComplianceFooter from '../components/ComplianceFooter'
 
 const C = {
-  navy: '#1B3A6B', green: '#0A7C4E', red: '#B91C1C', amber: '#92400E',
+  navy: '#1B3A6B', navyDim: '#2E5299', green: '#0A7C4E', red: '#B91C1C', amber: '#92400E',
   muted: '#6B7280', border: '#D1D5DB', ink: '#111827', bg2: '#F4F6F9',
 }
 
@@ -26,6 +28,8 @@ const inr = (v) => {
 }
 
 export default function ReviewManagerPage() {
+  const { user, isManager, isAdmin, logout } = useAuth()
+  const location = useLocation()
   const [queue, setQueue] = useState([])
   const [selected, setSelected] = useState(null)
   const [filter, setFilter] = useState('')
@@ -124,17 +128,36 @@ export default function ReviewManagerPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: '#FAFBFC' }}>
-      <header style={{
-        background: C.navy, padding: '16px 24px',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-      }}>
-        <div>
-          <a href="/advisor" style={{ color: '#fff', fontWeight: 800, fontSize: 20, fontFamily: 'Georgia, serif', textDecoration: 'none' }}>
-            MeraSIP
-          </a>
-          <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, marginLeft: 12 }}>Review Queue (Manager)</span>
+      <header style={{ background: C.navy, padding: '14px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+          <a href="/advisor" style={{ color: '#fff', fontWeight: 800, fontSize: 20, fontFamily: 'Georgia, serif', textDecoration: 'none' }}>MeraSIP</a>
+          <nav style={{ display: 'flex', gap: 8 }}>
+            {[
+              { label: 'Dashboard', href: '/advisor' },
+              { label: 'Rebalance', href: '/advisor/rebalance' },
+              { label: 'NAV Engine', href: '/advisor/nav' },
+              ...(isManager ? [{ label: 'Review Queue', href: '/advisor/review-queue' }] : []),
+              { label: 'Team', href: '/advisor/team' },
+              ...(isAdmin ? [{ label: 'Admin', href: '/advisor/admin' }] : []),
+            ].map(link => (
+              <a key={link.href} href={link.href} style={{
+                color: location.pathname === link.href ? '#fff' : 'rgba(255,255,255,0.7)',
+                textDecoration: 'none', fontSize: 13, fontWeight: 600, padding: '6px 12px',
+                borderRadius: 6,
+                background: location.pathname === link.href ? 'rgba(255,255,255,0.15)' : 'transparent',
+              }}>{link.label}</a>
+            ))}
+          </nav>
         </div>
-        <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 10 }}>ARN-286886</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <a href="/advisor/profile" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13, fontWeight: 700 }}>
+              {(user?.name || user?.email || '?')[0].toUpperCase()}
+            </div>
+            <span style={{ color: 'rgba(255,255,255,0.9)', fontSize: 13 }}>{user?.name || user?.email}</span>
+          </a>
+          <button onClick={logout} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', padding: '6px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer' }}>Logout</button>
+        </div>
       </header>
 
       <main style={{ maxWidth: 1000, margin: '0 auto', padding: '24px 16px' }}>

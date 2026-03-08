@@ -1,12 +1,19 @@
-"""Auth router — OTP-based advisor login via Supabase Auth."""
+"""Auth router — OTP-based advisor login + password-based employee login via Supabase Auth."""
 
 import os
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
 from supabase import create_client, Client
 
-from models.schemas import AdvisorLoginRequest, VerifyOTPRequest
+from models.schemas import (
+    AdvisorLoginRequest,
+    VerifyOTPRequest,
+    PasswordLoginRequest,
+    ChangePasswordRequest,
+)
 
 router = APIRouter()
 security = HTTPBearer()
@@ -24,8 +31,6 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) 
     """Verify Supabase JWT and return user payload."""
     token = credentials.credentials
     try:
-        # Supabase JWTs are signed with the JWT secret (same as SUPABASE_SERVICE_KEY for service role)
-        # For client JWTs, we verify against the Supabase JWT secret
         payload = jwt.decode(
             token,
             SECRET_KEY,
@@ -51,6 +56,22 @@ def require_manager(user: dict = Depends(verify_token)) -> dict:
         )
     return user
 
+
+def require_admin(user: dict = Depends(verify_token)) -> dict:
+    """Verify user has admin role in app_metadata."""
+    app_metadata = user.get("app_metadata", {})
+    role = app_metadata.get("role", user.get("role", ""))
+    if role not in ("admin", "service_role"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
+    return user
+
+
+# ---------------------------------------------------------------------------
+# OTP-based advisor login (existing)
+# ---------------------------------------------------------------------------
 
 @router.post("/advisor-login")
 async def advisor_login(req: AdvisorLoginRequest):
@@ -91,11 +112,153 @@ async def verify_otp(req: VerifyOTPRequest):
         raise HTTPException(status_code=400, detail=str(e))
 
 
+# ---------------------------------------------------------------------------
+# Password-based employee login (new)
+# ---------------------------------------------------------------------------
+
+@router.post("/login")
+async def password_login(req: PasswordLoginRequest):
+    """Authenticate employee with email + password and return JWT + profile."""
+    try:
+        sb = get_supabase()
+
+        # Sign in with password via Supabase Auth
+        response = sb.auth.sign_in_with_password({
+            "email": req.email,
+            "password": req.password,
+        })
+
+        session = response.session
+        user = response.user
+        if not session:
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+
+        # Fetch employee profile from employees table
+        emp_result = (
+            sb.table("employees")
+            .select("id, name, email, designation, department, role, status")
+            .eq("auth_id", user.id)
+            .maybe_single()
+            .execute()
+        )
+        employee = emp_result.data
+
+        # Update last_login timestamp
+        if employee:
+            sb.table("employees").update({
+                "last_login": datetime.now(timezone.utc).isoformat(),
+            }).eq("auth_id", user.id).execute()
+
+            # Log the activity
+            try:
+                sb.table("activity_log").insert({
+                    "employee_id": employee["id"],
+                    "action": "login",
+                    "details": f"{employee['name']} logged in",
+                }).execute()
+            except Exception:
+                pass  # Non-critical — don't fail login over logging
+
+        return {
+            "access_token": session.access_token,
+            "refresh_token": session.refresh_token,
+            "user": {
+                "id": user.id,
+                "email": user.email,
+                "role": user.app_metadata.get("role", "employee"),
+            },
+            "employee": employee,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=str(e))
+
+
+# ---------------------------------------------------------------------------
+# Change password (authenticated)
+# ---------------------------------------------------------------------------
+
+@router.post("/change-password")
+async def change_password(
+    req: ChangePasswordRequest,
+    user: dict = Depends(verify_token),
+):
+    """Change the authenticated user's password."""
+    try:
+        sb = get_supabase()
+        user_email = user.get("email", "")
+        user_id = user.get("sub", "")
+
+        # Verify current password by re-signing in
+        try:
+            sb.auth.sign_in_with_password({
+                "email": user_email,
+                "password": req.current_password,
+            })
+        except Exception:
+            raise HTTPException(status_code=400, detail="Current password is incorrect")
+
+        # Update to new password using admin API
+        sb.auth.admin.update_user_by_id(
+            user_id,
+            {"password": req.new_password},
+        )
+
+        # Log the activity
+        try:
+            emp_result = (
+                sb.table("employees")
+                .select("id, name")
+                .eq("auth_id", user_id)
+                .maybe_single()
+                .execute()
+            )
+            if emp_result.data:
+                sb.table("activity_log").insert({
+                    "employee_id": emp_result.data["id"],
+                    "action": "password_change",
+                    "details": f"{emp_result.data['name']} changed their password",
+                }).execute()
+        except Exception:
+            pass  # Non-critical
+
+        return {"message": "Password changed successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# ---------------------------------------------------------------------------
+# Current user info (enhanced)
+# ---------------------------------------------------------------------------
+
 @router.get("/me")
 async def get_me(user: dict = Depends(verify_token)):
-    """Return current user info from JWT."""
+    """Return current user info from JWT + employee profile from DB."""
+    user_id = user.get("sub")
+    user_email = user.get("email")
+    user_role = user.get("app_metadata", {}).get("role", "advisor")
+
+    # Try to fetch employee profile
+    employee = None
+    try:
+        sb = get_supabase()
+        emp_result = (
+            sb.table("employees")
+            .select("id, name, email, designation, department, role, status")
+            .eq("auth_id", user_id)
+            .maybe_single()
+            .execute()
+        )
+        employee = emp_result.data
+    except Exception:
+        pass  # Fall back to JWT-only data
+
     return {
-        "id": user.get("sub"),
-        "email": user.get("email"),
-        "role": user.get("app_metadata", {}).get("role", "advisor"),
+        "id": user_id,
+        "email": user_email,
+        "role": user_role,
+        "employee": employee,
     }

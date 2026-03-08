@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from routers import cas, reports, portfolio, auth, nav, review  # noqa: E402
+from routers.employees import router as employees_router  # noqa: E402
 
 app = FastAPI(
     title="MeraSIP S.M.A.R.T API",
@@ -20,6 +21,7 @@ origins = [
     "https://merasip.com",
     "https://www.merasip.com",
     "https://review.merasip.com",
+    "https://merasip.vercel.app",
     "http://localhost:5173",
     "http://localhost:3000",
 ]
@@ -39,6 +41,7 @@ app.include_router(portfolio.router, prefix="/api", tags=["Portfolio & Clients"]
 app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
 app.include_router(nav.router, prefix="/api", tags=["NAV"])
 app.include_router(review.router, prefix="/api/review", tags=["Review Workflow"])
+app.include_router(employees_router, prefix="/api/employees", tags=["employees"])
 
 
 @app.get("/health")

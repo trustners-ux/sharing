@@ -233,7 +233,7 @@ function GenerateModal({ client, portfolio, onClose }) {
 
 // ─── MAIN DASHBOARD ──────────────────────────────────────────
 export default function AdvisorDashboard() {
-  const { user, isManager, logout } = useAuth()
+  const { user, isManager, isAdmin, logout } = useAuth()
   const navigate = useNavigate()
   const [clients, setClients] = useState([])
   const [reports, setReports] = useState([])
@@ -299,6 +299,9 @@ export default function AdvisorDashboard() {
           <button onClick={() => navigate('/advisor/rebalance')} style={navBtn}>Rebalance</button>
           <button onClick={() => navigate('/advisor/nav')} style={navBtn}>NAV</button>
           {isManager && <button onClick={() => navigate('/advisor/review-queue')} style={{ ...navBtn, background: 'rgba(255,255,255,0.2)' }}>Review Queue</button>}
+          <button onClick={() => navigate('/advisor/team')} style={navBtn}>Team</button>
+          {isAdmin && <button onClick={() => navigate('/advisor/admin')} style={navBtn}>Admin</button>}
+          <button onClick={() => navigate('/advisor/profile')} style={navBtn}>Profile</button>
           <button onClick={logout} style={{ ...navBtn, opacity: 0.6 }}>Logout</button>
         </div>
       </div>

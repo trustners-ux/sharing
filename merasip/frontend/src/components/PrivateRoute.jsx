@@ -1,8 +1,8 @@
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
-export default function PrivateRoute({ children, requireManager = false }) {
-  const { isAuthenticated, isManager, isLoading } = useAuth()
+export default function PrivateRoute({ children, requireManager = false, requireAdmin = false }) {
+  const { isAuthenticated, isManager, isAdmin, isLoading } = useAuth()
 
   if (isLoading) {
     return (
@@ -20,6 +20,10 @@ export default function PrivateRoute({ children, requireManager = false }) {
   }
 
   if (requireManager && !isManager) {
+    return <Navigate to="/advisor" replace />
+  }
+
+  if (requireAdmin && !isAdmin) {
     return <Navigate to="/advisor" replace />
   }
 
