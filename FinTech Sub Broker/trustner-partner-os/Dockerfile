@@ -61,10 +61,14 @@ COPY --from=backend-builder /backend/dist ./dist
 # Copy built frontend into frontend-dist (served by NestJS)
 COPY --from=frontend-builder /frontend/dist ./frontend-dist
 
+# Copy startup script
+COPY start.sh ./start.sh
+RUN chmod +x ./start.sh
+
 ENV NODE_ENV=production
 ENV PORT=5000
 
 EXPOSE 5000
 
 ENTRYPOINT ["dumb-init", "--"]
-CMD ["node", "dist/main.js"]
+CMD ["sh", "./start.sh"]
