@@ -9,7 +9,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 
 /**
  * Authentication Module
- * Manages user authentication, authorization, and JWT tokens
+ * Manages user authentication, authorization, JWT tokens,
+ * user management (admin CRUD), and audit logging
  */
 @Module({
   imports: [

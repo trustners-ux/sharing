@@ -25,6 +25,10 @@ enum UserRole {
   SUB_BROKER
   CLIENT
   POSP
+  PRINCIPAL_OFFICER
+  MIS_MANAGER
+  MIS_CHECKER
+  MIS_ENTRY_OPERATOR
 }
 
 enum SubBrokerStatus {
@@ -191,6 +195,7 @@ enum AuditAction {
   UPDATE
   DELETE
   LOGIN
+  LOGIN_FAILED
   LOGOUT
   APPROVE
   REJECT
@@ -199,6 +204,15 @@ enum AuditAction {
   PAYOUT
   EXPORT
   CONFIG_CHANGE
+  MIS_CREATE
+  MIS_VERIFY
+  MIS_REJECT
+  MIS_AMEND
+  PASSWORD_CHANGE
+  PASSWORD_RESET
+  USER_CREATED
+  USER_APPROVED
+  USER_DEACTIVATED
 }
 
 enum BranchType {
@@ -401,35 +415,105 @@ enum TicketCategory {
 }
 
 // ============================================================================
+// SECTION 4: ENUMS - MIS MODULE
+// ============================================================================
+
+enum InsuranceDepartment {
+  HEALTH
+  LIFE
+  GENERAL
+}
+
+enum MISEntryStatus {
+  DRAFT
+  PENDING_VERIFICATION
+  VERIFIED
+  REJECTED
+  AMENDMENT_REQUESTED
+}
+
+enum ProductGradeLevel {
+  A
+  B
+  C
+  D
+}
+
+enum ProductComplexity {
+  LOW
+  MEDIUM
+  HIGH
+  VERY_HIGH
+}
+
+enum ContestType {
+  MONTHLY
+  QUARTERLY
+  HALF_YEARLY
+  ANNUAL
+}
+
+enum ContestMetricType {
+  PREMIUM_VOLUME
+  POLICY_COUNT
+  NEW_CUSTOMERS
+  RENEWALS
+  COMMISSION_EARNED
+}
+
+enum ContestStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum MISReportType {
+  MONTHLY_MIS
+  QUARTERLY_MIS
+  HALF_YEARLY_MIS
+  ANNUAL_MIS
+  CONTEST_REPORT
+  HIERARCHY_PERFORMANCE
+  DEPARTMENT_WISE
+}
+
+// ============================================================================
 // MODULE 1: USER & AUTHENTICATION
 // ============================================================================
 
 model User {
-  id              String    @id @default(cuid())
-  email           String    @unique
-  phone           String    @unique
-  passwordHash    String
-  role            UserRole
-  isActive        Boolean   @default(true)
-  isEmailVerified Boolean   @default(false)
-  isPhoneVerified Boolean   @default(false)
-  twoFactorEnabled Boolean  @default(false)
-  twoFactorSecret String?
-  lastLoginAt     DateTime?
-  lastLoginIp     String?
-  failedAttempts  Int       @default(0)
-  lockedUntil     DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id                String    @id @default(cuid())
+  email             String    @unique
+  phone             String?
+  name              String?
+  passwordHash      String
+  role              UserRole
+  isActive          Boolean   @default(true)
+  isApproved        Boolean   @default(false)
+  mustChangePassword Boolean  @default(true)
+  isEmailVerified   Boolean   @default(false)
+  isPhoneVerified   Boolean   @default(false)
+  twoFactorEnabled  Boolean   @default(false)
+  twoFactorSecret   String?
+  approvedBy        String?
+  approvedAt        DateTime?
+  lastLoginAt       DateTime?
+  lastLoginIp       String?
+  failedAttempts    Int       @default(0)
+  lockedUntil       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   // Relations
-  profile         UserProfile?
-  subBroker       SubBroker?
-  client          Client?
-  pospAgent       POSPAgent?
-  sessions        UserSession[]
-  auditLogs       AuditLog[]
-  notifications   Notification[]
+  profile           UserProfile?
+  subBroker         SubBroker?
+  client            Client?
+  pospAgent         POSPAgent?
+  sessions          UserSession[]
+  auditLogs         AuditLog[]
+  notifications     Notification[]
+  hierarchyNodes    SalesHierarchyNode[]
 
   @@index([email])
   @@index([phone])
@@ -1438,6 +1522,7 @@ model InsuranceProduct {
   policies        InsurancePolicy[]
   leads           InsuranceLead[]
   commissionSlabs InsuranceCommissionSlab[]
+  grades          ProductGrade[]
 
   @@index([companyId])
   @@index([lob])
@@ -1652,6 +1737,7 @@ model InsurancePolicy {
   statusHistory       PolicyStatusHistory[]
   documents           PolicyDocument[]
   inspections         VehicleInspection[]
+  misEntries          MISEntry[]
 
   @@index([pospId])
   @@index([companyId])
@@ -2200,4 +2286,315 @@ model InsuranceConfig {
   updatedAt   DateTime @updatedAt
 
   @@index([category])
+}
+
+// ============================================================================
+// MODULE 33: SALES HIERARCHY (FLEXIBLE N-LEVEL)
+// ============================================================================
+
+model HierarchyLevel {
+  id          String   @id @default(cuid())
+  levelNumber Int      @unique
+  levelName   String
+  levelCode   String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  nodes       SalesHierarchyNode[]
+
+  @@index([levelNumber])
+}
+
+model SalesHierarchyNode {
+  id               String              @id @default(cuid())
+  userId           String
+  hierarchyLevelId String
+  parentId         String?
+  departmentType   InsuranceDepartment?
+  branchId         String?
+  regionName       String?
+  isActive         Boolean             @default(true)
+  effectiveFrom    DateTime            @default(now())
+  effectiveTo      DateTime?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  user             User                @relation(fields: [userId], references: [id])
+  hierarchyLevel   HierarchyLevel      @relation(fields: [hierarchyLevelId], references: [id])
+  parent           SalesHierarchyNode? @relation("HierarchyTree", fields: [parentId], references: [id])
+  children         SalesHierarchyNode[] @relation("HierarchyTree")
+  misEntries       MISEntry[]          @relation("MISHierarchyNode")
+  contestEntries   ContestEntry[]
+
+  @@unique([userId, hierarchyLevelId])
+  @@index([parentId])
+  @@index([hierarchyLevelId])
+  @@index([departmentType])
+  @@index([isActive])
+}
+
+// ============================================================================
+// MODULE 34: PRODUCT GRADING (COMMISSION + COMPLEXITY)
+// ============================================================================
+
+model ProductGrade {
+  id              String            @id @default(cuid())
+  productId       String
+  grade           ProductGradeLevel
+  commissionTier  String?
+  complexityLevel ProductComplexity
+  description     String?
+  effectiveFrom   DateTime          @default(now())
+  effectiveTo     DateTime?
+  isActive        Boolean           @default(true)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  product         InsuranceProduct  @relation(fields: [productId], references: [id])
+
+  @@index([productId])
+  @@index([grade])
+  @@index([complexityLevel])
+  @@index([isActive])
+}
+
+// ============================================================================
+// MODULE 35: MIS ENTRY & VERIFICATION (MAKER-CHECKER)
+// ============================================================================
+
+model MISEntry {
+  id                  String              @id @default(cuid())
+  misCode             String              @unique
+  slNo                Int?                                    // SL No (auto-increment per month or manual)
+  policyId            String?
+  bulkBookingId       String?
+  hierarchyNodeId     String?
+  department          InsuranceDepartment
+  status              MISEntryStatus      @default(DRAFT)
+
+  // Entry Metadata
+  entryDate           DateTime?                               // ENTRY DATE - date of data entry
+  entryMonth          String?                                 // MONTH (e.g., "2026-03", "March 2026")
+
+  // Customer Details (denormalized for MIS reporting)
+  customerName        String                                  // NAME
+  customerPhone       String?                                 // CONTACT NO
+  customerEmail       String?                                 // MAIL ID
+  insurerName         String?                                 // COMPANY (Insurance Company)
+
+  // Policy Details
+  policyNumber        String?                                 // P/NO (Policy Number)
+  productName         String?
+  lob                 InsuranceLOB                            // Line of Business
+  policyType          String?                                 // POLICY TYPE (Motor/Health/Life/Fire/Marine/etc.)
+  motorPolicyType     String?                                 // TYPE OF MOTOR POLICY (Comprehensive/TP Only/Standalone OD/Bundled)
+  policyCategory      String?                                 // NEW or RENEWAL
+  productGrade        ProductGradeLevel?
+  sumInsured          Decimal?            @db.Decimal(18, 2)
+
+  // Policy Dates
+  policyStartDate     DateTime?                               // FROM
+  policyEndDate       DateTime?                               // TO
+  issuedDate          DateTime?                               // ISSUED DATE
+
+  // Premium Breakdown
+  odPremium           Decimal?            @db.Decimal(12, 2)  // OD PREMIUM
+  tpPremium           Decimal?            @db.Decimal(12, 2)  // TP PREMIUM
+  grossPremium        Decimal?            @db.Decimal(12, 2)  // Total Premium
+  netPremium          Decimal?            @db.Decimal(12, 2)  // NET PREMIUM (WITHOUT GST)
+  gstAmount           Decimal?            @db.Decimal(12, 2)  // GST Amount (auto-calculated or manual)
+  newPremium          Decimal?            @db.Decimal(12, 2)  // NEW PREMIUM
+
+  // Commission Splits
+  netPremium100       Decimal?            @db.Decimal(12, 2)  // NET PREMIUM (WITHOUT GST) 100%
+  netPremium70        Decimal?            @db.Decimal(12, 2)  // NET PREMIUM (WITHOUT GST) 70%
+  netPremium30        Decimal?            @db.Decimal(12, 2)  // NET PREMIUM (WITHOUT GST) 30%
+  renewalPremium50    Decimal?            @db.Decimal(12, 2)  // RENEWAL PREMIUM (WITHOUT GST) 50%
+  commissionAmount    Decimal?            @db.Decimal(12, 2)
+
+  // Business Source & Sales
+  referredBy          String?                                 // REFERED BY
+  businessClosedBy    String?                                 // BUSINESS CLOSED BY
+  agencyBroker        String?                                 // AGENCY/BROKER
+
+  // Agent/POSP Details
+  pospId              String?
+  pospName            String?                                 // POSP NAME
+  pospCode            String?
+
+  // Location & Classification
+  employeeLocation    String?                                 // EMPLOYEE LOCATION
+  branchName          String?                                 // Branch office name
+  isRenewal           Boolean             @default(false)
+  isNewCustomer       Boolean             @default(false)
+
+  // Motor-specific fields (recommended)
+  vehicleRegNo        String?                                 // Vehicle Registration Number
+  vehicleMake         String?                                 // Vehicle Make/Model
+  rtoLocation         String?                                 // RTO Location
+
+  // Payment Info (recommended)
+  paymentMode         String?                                 // Payment mode (Cash/Cheque/Online/UPI)
+  paymentReference    String?                                 // UTR / Transaction Reference
+
+  // File Upload Metadata
+  sourceType          String              @default("MANUAL")
+  uploadBatchId       String?
+  gapFields           Json?
+  gapResolved         Boolean             @default(true)
+
+  // Maker
+  makerId             String
+  makerRemarks        String?
+  enteredAt           DateTime            @default(now())
+
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  policy              InsurancePolicy?    @relation(fields: [policyId], references: [id])
+  hierarchyNode       SalesHierarchyNode? @relation("MISHierarchyNode", fields: [hierarchyNodeId], references: [id])
+  verifications       MISVerification[]
+
+  @@index([department])
+  @@index([status])
+  @@index([pospId])
+  @@index([makerId])
+  @@index([lob])
+  @@index([createdAt])
+  @@index([policyNumber])
+  @@index([entryMonth])
+  @@index([employeeLocation])
+  @@index([agencyBroker])
+}
+
+model MISVerification {
+  id              String          @id @default(cuid())
+  misEntryId      String
+  checkerId       String
+  checkerAction   String
+  remarks         String?
+  verifiedAt      DateTime        @default(now())
+  previousStatus  MISEntryStatus
+  newStatus       MISEntryStatus
+
+  misEntry        MISEntry        @relation(fields: [misEntryId], references: [id], onDelete: Cascade)
+
+  @@index([misEntryId])
+  @@index([checkerId])
+  @@index([verifiedAt])
+}
+
+model MISRoleConfig {
+  id              String              @id @default(cuid())
+  userId          String
+  department      InsuranceDepartment?
+  regionName      String?
+  canMake         Boolean              @default(false)
+  canCheck        Boolean              @default(false)
+  canViewReports  Boolean              @default(false)
+  canManageContest Boolean             @default(false)
+  isActive        Boolean              @default(true)
+  assignedBy      String
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@unique([userId, department, regionName])
+  @@index([userId])
+  @@index([department])
+}
+
+// ============================================================================
+// MODULE 36: CONTESTS & LEADERBOARDS
+// ============================================================================
+
+model Contest {
+  id                   String              @id @default(cuid())
+  contestCode          String              @unique
+  name                 String
+  description          String?
+  type                 ContestType
+  status               ContestStatus       @default(DRAFT)
+  startDate            DateTime
+  endDate              DateTime
+  departmentFilter     InsuranceDepartment?
+  hierarchyLevelFilter Int?
+  isActive             Boolean             @default(true)
+  createdBy            String
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+
+  metrics              ContestMetric[]
+  entries              ContestEntry[]
+
+  @@index([status])
+  @@index([type])
+  @@index([startDate, endDate])
+}
+
+model ContestMetric {
+  id              String           @id @default(cuid())
+  contestId       String
+  metricType      ContestMetricType
+  weight          Decimal          @db.Decimal(5, 2)
+  targetValue     Decimal?         @db.Decimal(18, 2)
+  description     String?
+
+  contest         Contest          @relation(fields: [contestId], references: [id], onDelete: Cascade)
+
+  @@unique([contestId, metricType])
+  @@index([contestId])
+}
+
+model ContestEntry {
+  id                  String              @id @default(cuid())
+  contestId           String
+  participantUserId   String
+  hierarchyNodeId     String?
+
+  premiumVolume       Decimal             @default(0) @db.Decimal(18, 2)
+  policyCount         Int                 @default(0)
+  newCustomers        Int                 @default(0)
+  renewals            Int                 @default(0)
+  commissionEarned    Decimal             @default(0) @db.Decimal(18, 2)
+
+  weightedScore       Decimal             @default(0) @db.Decimal(10, 4)
+  rank                Int?
+
+  lastCalculatedAt    DateTime?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  contest             Contest             @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  hierarchyNode       SalesHierarchyNode? @relation(fields: [hierarchyNodeId], references: [id])
+
+  @@unique([contestId, participantUserId])
+  @@index([contestId, weightedScore])
+  @@index([participantUserId])
+}
+
+// ============================================================================
+// MODULE 37: MIS REPORTS
+// ============================================================================
+
+model MISReport {
+  id              String        @id @default(cuid())
+  reportCode      String        @unique
+  reportType      MISReportType
+  periodMonth     Int?
+  periodYear      Int
+  periodQuarter   Int?
+  department      InsuranceDepartment?
+  filters         Json?
+  generatedBy     String
+  fileUrl         String?
+  fileName        String?
+  status          String        @default("GENERATING")
+  generatedAt     DateTime      @default(now())
+  completedAt     DateTime?
+
+  @@index([reportType, periodYear])
+  @@index([department])
+  @@index([generatedBy])
 }

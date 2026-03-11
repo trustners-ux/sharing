@@ -1,11 +1,29 @@
 # =============================================================================
-# Multi-stage Dockerfile for Trustner Partner OS Backend
-# Stage 1: Build
-# Stage 2: Production Runtime
+# Multi-stage Dockerfile for Trustner Partner OS
+# Stage 1: Build Frontend
+# Stage 2: Build Backend
+# Stage 3: Production Runtime
 # =============================================================================
 
 # ============================================================================
-# STAGE 1: BUILD
+# STAGE 1: BUILD FRONTEND
+# ============================================================================
+FROM node:20-alpine AS frontend-builder
+
+WORKDIR /frontend
+
+COPY ../frontend/package*.json ./
+RUN npm install
+
+COPY ../frontend/ .
+
+# Set API URL to same origin (backend serves both)
+ENV VITE_API_URL=/api
+
+RUN npm run build
+
+# ============================================================================
+# STAGE 2: BUILD BACKEND
 # ============================================================================
 FROM node:20-alpine AS builder
 
@@ -30,7 +48,7 @@ RUN npm run prisma:generate
 RUN npm run build
 
 # ============================================================================
-# STAGE 2: PRODUCTION
+# STAGE 3: PRODUCTION
 # ============================================================================
 FROM node:20-alpine
 

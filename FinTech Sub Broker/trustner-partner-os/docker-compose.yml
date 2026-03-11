@@ -1,6 +1,6 @@
 # ============================================================================
 # TRUSTNER PARTNER OS - Docker Compose Production Configuration
-# B2B2C Fintech Distribution Platform
+# MIS Portal: www.trustner4u.com/mis
 # ============================================================================
 
 version: '3.8'
@@ -64,13 +64,19 @@ services:
       PORT: 5000
       DATABASE_URL: postgresql://${DB_USER:-trustner_admin}:${DB_PASSWORD:-TrustnerSecure@2026}@postgres:5432/${DB_NAME:-trustner_partner_os}?schema=public
       JWT_SECRET: ${JWT_SECRET:-TrustnerJWT_SuperSecret_2026_ChangeMe}
-      JWT_EXPIRY: ${JWT_EXPIRY:-1h}
-      JWT_REFRESH_EXPIRY: ${JWT_REFRESH_EXPIRY:-7d}
+      JWT_ACCESS_EXPIRY: ${JWT_EXPIRY:-3600s}
+      JWT_REFRESH_EXPIRY: ${JWT_REFRESH_EXPIRY:-604800s}
       REDIS_URL: redis://:${REDIS_PASSWORD:-TrustnerRedis@2026}@redis:6379
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost,http://localhost:3000,https://app.trustner.in}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://www.trustner4u.com,https://trustner4u.com,http://localhost}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-TrustnerEncrypt_AES256_Key_2026}
-      ENABLE_SWAGGER_DOCS: 'false'
-      ENABLE_HELMET_SECURITY: 'false'
+      ENABLE_SWAGGER_DOCS: ${ENABLE_SWAGGER_DOCS:-false}
+      ENABLE_HELMET_SECURITY: ${ENABLE_HELMET_SECURITY:-true}
+      ENABLE_RATE_LIMITING: ${ENABLE_RATE_LIMITING:-true}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-Trustner MIS <notifications@trustner.in>}
     ports:
       - "${API_PORT:-5000}:5000"
     depends_on:
@@ -88,7 +94,7 @@ services:
       - trustner-network
 
   # --------------------------------------------------------------------------
-  # React Frontend (Nginx)
+  # React Frontend (Nginx) - Serves at /mis
   # --------------------------------------------------------------------------
   frontend:
     build:

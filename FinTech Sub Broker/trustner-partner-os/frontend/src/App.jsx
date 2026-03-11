@@ -1,8 +1,9 @@
 import React, { Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-// Layouts
+// Layouts & Auth
 import UnifiedLayout from './layouts/UnifiedLayout';
+import ProtectedRoute from './components/ProtectedRoute';
 
 // Pages - Dashboard & MF
 const UnifiedDashboard = lazy(() => import('./pages/UnifiedDashboard'));
@@ -27,6 +28,23 @@ const TicketsPage = lazy(() => import('./pages/insurance/TicketsPage'));
 const TicketDetail = lazy(() => import('./pages/insurance/TicketDetail'));
 const IBReportsPage = lazy(() => import('./pages/insurance/IBReportsPage'));
 const InspectionPage = lazy(() => import('./pages/insurance/InspectionPage'));
+
+// Pages - Insurance MIS
+const MISDashboard = lazy(() => import('./pages/insurance/MISDashboard'));
+const MISEntryPage = lazy(() => import('./pages/insurance/MISEntryPage'));
+const MISEntryDetail = lazy(() => import('./pages/insurance/MISEntryDetail'));
+const MISVerificationPage = lazy(() => import('./pages/insurance/MISVerificationPage'));
+const MISReportsPage = lazy(() => import('./pages/insurance/MISReportsPage'));
+const HierarchyManagement = lazy(() => import('./pages/insurance/HierarchyManagement'));
+const ProductGradingPage = lazy(() => import('./pages/insurance/ProductGradingPage'));
+const ContestManagement = lazy(() => import('./pages/insurance/ContestManagement'));
+const ContestDetail = lazy(() => import('./pages/insurance/ContestDetail'));
+
+// Pages - Auth & Admin
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const ChangePasswordPage = lazy(() => import('./pages/ChangePasswordPage'));
+const UserManagementPage = lazy(() => import('./pages/admin/UserManagementPage'));
+const AuditLogsPage = lazy(() => import('./pages/admin/AuditLogsPage'));
 
 // Pages - AI Advisory
 const AdvisoryDashboard = lazy(() => import('./pages/advisory/AdvisoryDashboard'));
@@ -53,11 +71,19 @@ const LoadingSpinner = () => (
 
 function App() {
   return (
-    <Router>
+    <Router basename="/mis">
       <Suspense fallback={<LoadingSpinner />}>
         <Routes>
-          {/* Unified Layout Routes */}
-          <Route element={<UnifiedLayout />}>
+          {/* Public Auth Routes (outside UnifiedLayout, no auth required) */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/change-password" element={<ChangePasswordPage />} />
+
+          {/* Protected Routes - Login Required */}
+          <Route element={
+            <ProtectedRoute>
+              <UnifiedLayout />
+            </ProtectedRoute>
+          }>
             {/* Default Dashboard */}
             <Route path="/" element={<UnifiedDashboard />} />
 
@@ -104,6 +130,21 @@ function App() {
 
             {/* Insurance Routes - Inspections */}
             <Route path="/insurance/inspections" element={<InspectionPage />} />
+
+            {/* Insurance MIS Routes */}
+            <Route path="/insurance/mis" element={<MISDashboard />} />
+            <Route path="/insurance/mis/entry" element={<MISEntryPage />} />
+            <Route path="/insurance/mis/entries/:id" element={<MISEntryDetail />} />
+            <Route path="/insurance/mis/verification" element={<MISVerificationPage />} />
+            <Route path="/insurance/mis/reports" element={<MISReportsPage />} />
+            <Route path="/insurance/hierarchy" element={<HierarchyManagement />} />
+            <Route path="/insurance/product-grades" element={<ProductGradingPage />} />
+            <Route path="/insurance/contests" element={<ContestManagement />} />
+            <Route path="/insurance/contests/:id" element={<ContestDetail />} />
+
+            {/* Admin Routes - restricted to SUPER_ADMIN & PRINCIPAL_OFFICER */}
+            <Route path="/admin/users" element={<UserManagementPage />} />
+            <Route path="/admin/audit-logs" element={<AuditLogsPage />} />
 
             {/* AI Advisory Routes */}
             <Route path="/advisory" element={<AdvisoryDashboard />} />

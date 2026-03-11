@@ -5,6 +5,11 @@ export const ROLES = {
   REGIONAL_HEAD: 'REGIONAL_HEAD',
   SUB_BROKER: 'SUB_BROKER',
   CLIENT: 'CLIENT',
+  POSP: 'POSP',
+  PRINCIPAL_OFFICER: 'PRINCIPAL_OFFICER',
+  MIS_MANAGER: 'MIS_MANAGER',
+  MIS_CHECKER: 'MIS_CHECKER',
+  MIS_ENTRY_OPERATOR: 'MIS_ENTRY_OPERATOR',
 }
 
 export const ROLE_LABELS = {
@@ -14,6 +19,11 @@ export const ROLE_LABELS = {
   REGIONAL_HEAD: 'Regional Head',
   SUB_BROKER: 'Sub-Broker',
   CLIENT: 'Investor',
+  POSP: 'POSP Agent',
+  PRINCIPAL_OFFICER: 'Principal Officer',
+  MIS_MANAGER: 'MIS Manager',
+  MIS_CHECKER: 'MIS Checker',
+  MIS_ENTRY_OPERATOR: 'MIS Entry Operator',
 }
 
 export const ROLE_COLORS = {
@@ -23,12 +33,25 @@ export const ROLE_COLORS = {
   REGIONAL_HEAD: 'blue',
   SUB_BROKER: 'purple',
   CLIENT: 'gray',
+  POSP: 'orange',
+  PRINCIPAL_OFFICER: 'purple',
+  MIS_MANAGER: 'blue',
+  MIS_CHECKER: 'teal',
+  MIS_ENTRY_OPERATOR: 'green',
 }
 
 export const ADMIN_ROLES = [
   ROLES.SUPER_ADMIN,
   ROLES.COMPLIANCE_ADMIN,
   ROLES.FINANCE_ADMIN,
+  ROLES.PRINCIPAL_OFFICER,
+]
+
+export const MIS_ROLES = [
+  ROLES.PRINCIPAL_OFFICER,
+  ROLES.MIS_MANAGER,
+  ROLES.MIS_CHECKER,
+  ROLES.MIS_ENTRY_OPERATOR,
 ]
 
 export const PARTNER_ROLES = [

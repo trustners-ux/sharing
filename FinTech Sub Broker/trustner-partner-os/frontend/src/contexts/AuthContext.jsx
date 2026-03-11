@@ -40,13 +40,23 @@ export function AuthProvider({ children }) {
     setIsAuthenticated(false)
   }, [])
 
+  const updateUser = useCallback((updates) => {
+    setUser((prev) => {
+      const updated = { ...prev, ...updates }
+      localStorage.setItem('user', JSON.stringify(updated))
+      return updated
+    })
+  }, [])
+
   const value = {
     user,
     login,
     logout,
+    updateUser,
     isLoading,
     isAuthenticated,
     role: user?.role || null,
+    mustChangePassword: user?.mustChangePassword || false,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -13,6 +13,10 @@ export const authService = {
   },
 
   logout: () => {
+    const token = localStorage.getItem('accessToken')
+    if (token) {
+      api.post('/auth/logout').catch(() => {}) // Best effort
+    }
     localStorage.removeItem('accessToken')
     localStorage.removeItem('refreshToken')
     localStorage.removeItem('user')
@@ -38,9 +42,17 @@ export const authService = {
     }
   },
 
+  changePassword: async (oldPassword, newPassword) => {
+    return api.post('/auth/change-password', { oldPassword, newPassword })
+  },
+
   getCurrentUser: () => {
     const user = localStorage.getItem('user')
     return user ? JSON.parse(user) : null
+  },
+
+  getMe: async () => {
+    return api.get('/auth/me')
   },
 
   isAuthenticated: () => {
@@ -50,5 +62,42 @@ export const authService = {
   getUserRole: () => {
     const user = authService.getCurrentUser()
     return user?.role || null
+  },
+
+  // Admin: User Management
+  createUser: async (data) => {
+    return api.post('/auth/users', data)
+  },
+
+  listUsers: async (params = {}) => {
+    const query = new URLSearchParams(params).toString()
+    return api.get(`/auth/users${query ? '?' + query : ''}`)
+  },
+
+  getUser: async (id) => {
+    return api.get(`/auth/users/${id}`)
+  },
+
+  toggleUserActive: async (id) => {
+    return api.post(`/auth/users/${id}/toggle-active`)
+  },
+
+  resetUserPassword: async (id) => {
+    return api.post(`/auth/users/${id}/reset-password`)
+  },
+
+  updateUserRole: async (id, role) => {
+    return api.post(`/auth/users/${id}/update-role`, { role })
+  },
+
+  // Audit Logs
+  getAuditLogs: async (params = {}) => {
+    const query = new URLSearchParams(params).toString()
+    return api.get(`/auth/audit-logs${query ? '?' + query : ''}`)
+  },
+
+  getLoginLogs: async (params = {}) => {
+    const query = new URLSearchParams(params).toString()
+    return api.get(`/auth/login-logs${query ? '?' + query : ''}`)
   },
 }

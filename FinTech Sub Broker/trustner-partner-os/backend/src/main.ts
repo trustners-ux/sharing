@@ -4,6 +4,8 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
 import compression from 'compression';
 import rateLimit from 'express-rate-limit';
+import { join } from 'path';
+import * as express from 'express';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
@@ -13,6 +15,11 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const port = process.env.PORT || 5000;
   const env = process.env.NODE_ENV || 'development';
+
+  // Set global API prefix
+  app.setGlobalPrefix('api', {
+    exclude: ['health', 'mis', 'mis/(.*)'],
+  });
 
   // Enable CORS with configurable origins
   const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000').split(',');
@@ -27,14 +34,7 @@ async function bootstrap() {
   if (process.env.ENABLE_HELMET_SECURITY !== 'false') {
     app.use(
       helmet({
-        contentSecurityPolicy: {
-          directives: {
-            defaultSrc: ["'self'"],
-            styleSrc: ["'self'", "'unsafe-inline'"],
-            scriptSrc: ["'self'"],
-            imgSrc: ["'self'", 'data:', 'https:'],
-          },
-        },
+        contentSecurityPolicy: false, // Disabled for SPA - Vite uses inline scripts/styles
         hsts: { maxAge: 31536000, includeSubDomains: true, preload: true },
         frameguard: { action: 'deny' },
         noSniff: true,
@@ -128,6 +128,24 @@ async function bootstrap() {
   expressApp.get('/health', (req: any, res: any) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
   });
+
+  // Serve frontend static files in production
+  // Frontend build is copied to ../frontend-dist during deployment
+  const frontendPath = join(__dirname, '..', 'frontend-dist');
+  const fs = require('fs');
+  if (fs.existsSync(frontendPath)) {
+    logger.log(`Serving frontend from ${frontendPath}`);
+    // Serve static assets under /mis/
+    expressApp.use('/mis', express.static(frontendPath));
+    // SPA fallback: any /mis/* route that doesn't match an API or static file returns index.html
+    expressApp.get('/mis/*', (req: any, res: any) => {
+      res.sendFile(join(frontendPath, 'index.html'));
+    });
+    // Root redirect to /mis/
+    expressApp.get('/', (req: any, res: any) => {
+      res.redirect('/mis/');
+    });
+  }
 
   await app.listen(port);
   logger.log(`✓ Application started on port ${port} in ${env} mode`);

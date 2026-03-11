@@ -21,6 +21,12 @@ import {
   DollarSign,
   Activity,
   Home,
+  Trophy,
+  CheckSquare,
+  GitBranch,
+  Star,
+  Lock,
+  ScrollText,
 } from 'lucide-react';
 
 const UnifiedLayout = () => {
@@ -68,6 +74,19 @@ const UnifiedLayout = () => {
       ],
     },
     {
+      section: 'INSURANCE MIS',
+      color: 'teal',
+      items: [
+        { label: 'MIS Dashboard', icon: BarChart3, path: '/insurance/mis' },
+        { label: 'MIS Entry', icon: FileText, path: '/insurance/mis/entry' },
+        { label: 'Verification', icon: CheckSquare, path: '/insurance/mis/verification' },
+        { label: 'MIS Reports', icon: ClipboardList, path: '/insurance/mis/reports' },
+        { label: 'Hierarchy', icon: GitBranch, path: '/insurance/hierarchy', adminOnly: true },
+        { label: 'Product Grades', icon: Star, path: '/insurance/product-grades', adminOnly: true },
+        { label: 'Contests', icon: Trophy, path: '/insurance/contests' },
+      ],
+    },
+    {
       section: 'AI ADVISORY',
       color: 'purple',
       items: [
@@ -81,13 +100,29 @@ const UnifiedLayout = () => {
     },
   ];
 
+  const adminMenuItems = [
+    {
+      section: 'ADMIN',
+      color: 'red',
+      items: [
+        { label: 'User Management', icon: Users, path: '/admin/users', adminOnly: true },
+        { label: 'Audit Logs', icon: ScrollText, path: '/admin/audit-logs', adminOnly: true },
+        { label: 'Change Password', icon: Lock, path: '/change-password' },
+      ],
+    },
+  ];
+
+  const allMenuItems = [...menuItems, ...adminMenuItems];
+
   const commonItems = [
     { label: 'My Profile', icon: User, path: '/profile' },
     { label: 'Settings', icon: Settings, path: '/settings' },
   ];
 
   const handleLogout = () => {
-    localStorage.removeItem('authToken');
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
     navigate('/login');
   };
 
@@ -97,6 +132,7 @@ const UnifiedLayout = () => {
       blue: { accent: 'text-blue-600 hover:bg-blue-50', border: 'border-blue-200', active: 'bg-blue-50 text-blue-700 border-blue-500' },
       teal: { accent: 'text-teal-600 hover:bg-teal-50', border: 'border-teal-200', active: 'bg-teal-50 text-teal-700 border-teal-500' },
       purple: { accent: 'text-purple-600 hover:bg-purple-50', border: 'border-purple-200', active: 'bg-purple-50 text-purple-700 border-purple-500' },
+      red: { accent: 'text-red-600 hover:bg-red-50', border: 'border-red-200', active: 'bg-red-50 text-red-700 border-red-500' },
     };
     const colors = colorMap[section.color] || colorMap.blue;
     const accentColor = colors.accent;
@@ -135,7 +171,7 @@ const UnifiedLayout = () => {
                 onClick={() => navigate(item.path)}
                 className={`w-full flex items-center px-4 py-3 text-sm font-medium transition-all ${
                   isCurrentActive
-                    ? `${section.color === 'blue' ? 'bg-blue-50 border-l-4 border-blue-600 text-blue-700' : 'bg-teal-50 border-l-4 border-teal-600 text-teal-700'}`
+                    ? `${colors.active} border-l-4`
                     : `text-gray-700 ${accentColor}`
                 }`}
               >
@@ -177,7 +213,7 @@ const UnifiedLayout = () => {
 
         {/* Menu */}
         <nav className="flex-1 overflow-y-auto px-3 py-6 space-y-4">
-          {menuItems.map(renderMenuSection)}
+          {allMenuItems.map(renderMenuSection)}
 
           {/* Divider */}
           <div className="border-t border-slate-700 my-4" />

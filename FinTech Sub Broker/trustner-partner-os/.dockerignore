@@ -1,0 +1,12 @@
+**/node_modules
+**/dist
+**/.env
+**/.env.local
+**/npm-debug.log*
+**/.git
+.claude
+scripts
+backups
+*.md
+er-diagram.mermaid
+architecture-diagram.html

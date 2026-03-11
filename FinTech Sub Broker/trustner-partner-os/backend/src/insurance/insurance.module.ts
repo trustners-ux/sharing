@@ -12,12 +12,17 @@ import { TicketsModule } from './tickets/tickets.module';
 import { IRDAIComplianceModule } from './compliance/irdai-compliance.module';
 import { InsuranceDashboardModule } from './dashboard/insurance-dashboard.module';
 import { BulkBookingModule } from './bulk-booking/bulk-booking.module';
+import { HierarchyModule } from './hierarchy/hierarchy.module';
+import { ProductGradeModule } from './product-grade/product-grade.module';
+import { MISModule } from './mis/mis.module';
+import { ContestModule } from './contest/contest.module';
 
 /**
  * Insurance Broking Module
  * Root module that aggregates all insurance-related sub-modules
  * Manages POSP agents, leads, policies, claims, commissions, and regulatory compliance
  * IRDAI-compliant broker platform replacing Heph Scope
+ * MIS: Master Information System with maker-checker workflow, hierarchy, grading, and contests
  */
 @Module({
   imports: [
@@ -34,6 +39,10 @@ import { BulkBookingModule } from './bulk-booking/bulk-booking.module';
     IRDAIComplianceModule,
     InsuranceDashboardModule,
     BulkBookingModule,
+    HierarchyModule,
+    ProductGradeModule,
+    MISModule,
+    ContestModule,
   ],
   controllers: [],
   providers: [],
@@ -50,6 +59,10 @@ import { BulkBookingModule } from './bulk-booking/bulk-booking.module';
     IRDAIComplianceModule,
     InsuranceDashboardModule,
     BulkBookingModule,
+    HierarchyModule,
+    ProductGradeModule,
+    MISModule,
+    ContestModule,
   ],
 })
 export class InsuranceModule {}
