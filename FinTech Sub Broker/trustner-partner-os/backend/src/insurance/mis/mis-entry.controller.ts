@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Patch, Body, Param, Query, Request, UseGuards } from '@nestjs/common';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../../auth/guards/roles.guard';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
 import { MISEntryService } from './mis-entry.service';
 import { CreateMISEntryDto } from './dto/create-mis-entry.dto';
 import { UpdateMISEntryDto } from './dto/update-mis-entry.dto';

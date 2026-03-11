@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Patch, Body, Param, Query, UseGuards } from '@nestjs/common';
-import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../../auth/guards/roles.guard';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
 import { HierarchyService } from './hierarchy.service';
 import { CreateHierarchyLevelDto } from './dto/create-hierarchy-level.dto';
 import { CreateNodeDto } from './dto/create-node.dto';
