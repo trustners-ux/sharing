@@ -6,21 +6,26 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { HierarchyService } from '../hierarchy/hierarchy.service';
 import { CreatePOSPDto } from './dto/create-posp.dto';
 import { UpdatePOSPDto } from './dto/update-posp.dto';
-import { POSPStatus, POSPCategory } from '@prisma/client';
+import { POSPStatus, POSPCategory, UserRole } from '@prisma/client';
 import dayjs from 'dayjs';
 
 /**
  * POSP Management Service
  * Handles agent onboarding, training, certification, activation, and performance tracking
  * IRDAI-compliant POSP (Point of Sale Person) lifecycle management
+ * Supports hierarchy-scoped data access: RM → CDM → Senior Management
  */
 @Injectable()
 export class POSPService {
   private readonly logger = new Logger('POSPService');
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private hierarchyService: HierarchyService,
+  ) {}
 
   /**
    * Generate unique POSP agent code
@@ -690,5 +695,211 @@ export class POSPService {
       this.logger.error(`Error fetching POSP dashboard: ${error.message}`);
       throw error;
     }
+  }
+
+  // ============================================================================
+  // HIERARCHY-SCOPED DATA ACCESS
+  // ============================================================================
+
+  /**
+   * Find POSPs assigned to a specific Relationship Manager
+   */
+  async findByManager(
+    managerId: string,
+    pagination: { skip: number; take: number },
+    filters: { status?: POSPStatus; category?: POSPCategory; search?: string },
+  ): Promise<any> {
+    try {
+      const where: any = { reportingManagerId: managerId };
+
+      if (filters.status) where.status = filters.status;
+      if (filters.category) where.category = filters.category;
+      if (filters.search) {
+        where.OR = [
+          { firstName: { contains: filters.search, mode: 'insensitive' } },
+          { lastName: { contains: filters.search, mode: 'insensitive' } },
+          { email: { contains: filters.search, mode: 'insensitive' } },
+          { phone: { contains: filters.search, mode: 'insensitive' } },
+          { agentCode: { contains: filters.search, mode: 'insensitive' } },
+        ];
+      }
+
+      const [data, total] = await Promise.all([
+        this.prisma.pOSPAgent.findMany({
+          where,
+          skip: pagination.skip,
+          take: pagination.take,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            _count: { select: { policies: true, commissions: true, leads: true } },
+          },
+        }),
+        this.prisma.pOSPAgent.count({ where }),
+      ]);
+
+      return {
+        data,
+        pagination: {
+          total,
+          skip: pagination.skip,
+          take: pagination.take,
+          pages: Math.ceil(total / pagination.take),
+        },
+      };
+    } catch (error) {
+      this.logger.error(`Error fetching POSPs by manager: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Find POSPs under an entire hierarchy subtree (CDM sees all their RMs' POSPs)
+   */
+  async findByHierarchy(
+    userId: string,
+    pagination: { skip: number; take: number },
+    filters: { status?: POSPStatus; category?: POSPCategory; search?: string; managerId?: string },
+  ): Promise<any> {
+    try {
+      // Get user's hierarchy node
+      const node = await this.prisma.salesHierarchyNode.findFirst({
+        where: { userId, isActive: true },
+      });
+
+      if (!node) {
+        // No hierarchy position, return empty
+        return { data: [], pagination: { total: 0, skip: pagination.skip, take: pagination.take, pages: 0 } };
+      }
+
+      // Get all descendant nodes (team members under this user)
+      const descendants = await this.hierarchyService.getTeamMembers(node.id);
+      const teamUserIds = descendants.map((d) => d.userId);
+      // Include self
+      teamUserIds.push(userId);
+
+      const where: any = {
+        reportingManagerId: { in: teamUserIds },
+      };
+
+      // Optional filter by specific RM within team
+      if (filters.managerId) {
+        if (teamUserIds.includes(filters.managerId)) {
+          where.reportingManagerId = filters.managerId;
+        }
+      }
+
+      if (filters.status) where.status = filters.status;
+      if (filters.category) where.category = filters.category;
+      if (filters.search) {
+        where.AND = [
+          { reportingManagerId: where.reportingManagerId },
+          {
+            OR: [
+              { firstName: { contains: filters.search, mode: 'insensitive' } },
+              { lastName: { contains: filters.search, mode: 'insensitive' } },
+              { email: { contains: filters.search, mode: 'insensitive' } },
+              { phone: { contains: filters.search, mode: 'insensitive' } },
+              { agentCode: { contains: filters.search, mode: 'insensitive' } },
+            ],
+          },
+        ];
+        delete where.reportingManagerId;
+      }
+
+      const [data, total] = await Promise.all([
+        this.prisma.pOSPAgent.findMany({
+          where,
+          skip: pagination.skip,
+          take: pagination.take,
+          orderBy: { createdAt: 'desc' },
+          include: {
+            _count: { select: { policies: true, commissions: true, leads: true } },
+          },
+        }),
+        this.prisma.pOSPAgent.count({ where }),
+      ]);
+
+      return {
+        data,
+        pagination: {
+          total,
+          skip: pagination.skip,
+          take: pagination.take,
+          pages: Math.ceil(total / pagination.take),
+        },
+      };
+    } catch (error) {
+      this.logger.error(`Error fetching POSPs by hierarchy: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Get POSPs scoped to current user's role in the hierarchy
+   * - RM: Only their directly assigned POSPs
+   * - CDM: All POSPs under their RM team
+   * - SUPER_ADMIN / PRINCIPAL_OFFICER: All POSPs
+   */
+  async getMyTeamPOSPs(
+    userId: string,
+    userRole: UserRole,
+    pagination: { skip: number; take: number },
+    filters: { status?: POSPStatus; category?: POSPCategory; search?: string; managerId?: string },
+  ): Promise<any> {
+    switch (userRole) {
+      case UserRole.RELATIONSHIP_MANAGER:
+        return this.findByManager(userId, pagination, filters);
+
+      case UserRole.CLUSTER_DEVELOPMENT_MANAGER:
+      case UserRole.REGIONAL_HEAD:
+        return this.findByHierarchy(userId, pagination, filters);
+
+      case UserRole.SUPER_ADMIN:
+      case UserRole.PRINCIPAL_OFFICER:
+      case UserRole.COMPLIANCE_ADMIN:
+        return this.findAll(pagination, filters);
+
+      default:
+        return { data: [], pagination: { total: 0, skip: pagination.skip, take: pagination.take, pages: 0 } };
+    }
+  }
+
+  /**
+   * Get team hierarchy tree for the current user
+   * Returns the user's position and their team structure
+   */
+  async getMyTeamTree(userId: string): Promise<any> {
+    try {
+      const node = await this.prisma.salesHierarchyNode.findFirst({
+        where: { userId, isActive: true },
+      });
+
+      if (!node) {
+        return { position: null, team: [] };
+      }
+
+      const position = await this.hierarchyService.getUserHierarchyPosition(userId);
+      const team = await this.hierarchyService.getTeamMembers(node.id);
+
+      return { position, team };
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        return { position: null, team: [] };
+      }
+      this.logger.error(`Error fetching team tree: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all POSPs for export (no pagination limit, respects hierarchy)
+   */
+  async getAllForExport(
+    userId: string,
+    userRole: UserRole,
+    filters: { status?: POSPStatus; category?: POSPCategory; search?: string },
+  ): Promise<any[]> {
+    const result = await this.getMyTeamPOSPs(userId, userRole, { skip: 0, take: 10000 }, filters);
+    return result.data;
   }
 }

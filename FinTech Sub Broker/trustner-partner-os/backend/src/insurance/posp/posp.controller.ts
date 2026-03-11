@@ -10,6 +10,8 @@ import {
   HttpCode,
   HttpStatus,
   BadRequestException,
+  Res,
+  StreamableFile,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -17,7 +19,9 @@ import {
   ApiResponse,
   ApiBearerAuth,
 } from '@nestjs/swagger';
+import { Response } from 'express';
 import { POSPService } from './posp.service';
+import { POSPExportService } from './posp-export.service';
 import { CreatePOSPDto } from './dto/create-posp.dto';
 import { UpdatePOSPDto } from './dto/update-posp.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -31,13 +35,111 @@ import { UserRole } from '@prisma/client';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth('jwt')
 export class POSPController {
-  constructor(private pospService: POSPService) {}
+  constructor(
+    private pospService: POSPService,
+    private pospExportService: POSPExportService,
+  ) {}
+
+  /**
+   * Get POSPs scoped to current user's hierarchy position
+   * RM: only their assigned POSPs | CDM: their team's POSPs | Admin: all
+   */
+  @Get('my-posps')
+  @ApiOperation({
+    summary: 'Get my scoped POSPs',
+    description: 'Returns POSPs based on user role and hierarchy position',
+  })
+  @ApiResponse({ status: 200, description: 'Scoped POSP list' })
+  async getMyPOSPs(
+    @CurrentUser() user: any,
+    @Query('skip') skip: string = '0',
+    @Query('take') take: string = '10',
+    @Query('status') status?: string,
+    @Query('category') category?: string,
+    @Query('search') search?: string,
+    @Query('managerId') managerId?: string,
+  ) {
+    return this.pospService.getMyTeamPOSPs(
+      user.id,
+      user.role,
+      { skip: parseInt(skip), take: parseInt(take) },
+      { status: status as any, category: category as any, search, managerId },
+    );
+  }
+
+  /**
+   * Get current user's team hierarchy tree
+   */
+  @Get('my-team')
+  @ApiOperation({
+    summary: 'Get my team hierarchy',
+    description: 'Returns user position and team structure',
+  })
+  @ApiResponse({ status: 200, description: 'Team hierarchy tree' })
+  async getMyTeam(@CurrentUser() user: any) {
+    return this.pospService.getMyTeamTree(user.id);
+  }
+
+  /**
+   * Export POSPs as Excel or CSV file
+   */
+  @Get('export')
+  @Roles(
+    UserRole.SUPER_ADMIN,
+    UserRole.PRINCIPAL_OFFICER,
+    UserRole.COMPLIANCE_ADMIN,
+    UserRole.CLUSTER_DEVELOPMENT_MANAGER,
+  )
+  @ApiOperation({
+    summary: 'Export POSPs',
+    description: 'Download POSPs data as Excel or CSV (hierarchy-scoped)',
+  })
+  @ApiResponse({ status: 200, description: 'File download' })
+  async exportPOSPs(
+    @CurrentUser() user: any,
+    @Res({ passthrough: true }) res: Response,
+    @Query('format') format: string = 'xlsx',
+    @Query('status') status?: string,
+    @Query('category') category?: string,
+    @Query('search') search?: string,
+  ) {
+    const filters = {
+      status: status as any,
+      category: category as any,
+      search,
+    };
+
+    if (format === 'csv') {
+      const buffer = await this.pospExportService.exportToCSV(
+        user.id,
+        user.role,
+        filters,
+      );
+      res.set({
+        'Content-Type': 'text/csv',
+        'Content-Disposition': `attachment; filename="posps_${new Date().toISOString().slice(0, 10)}.csv"`,
+      });
+      return new StreamableFile(buffer);
+    }
+
+    // Default: XLSX
+    const buffer = await this.pospExportService.exportToExcel(
+      user.id,
+      user.role,
+      filters,
+    );
+    res.set({
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="posps_${new Date().toISOString().slice(0, 10)}.xlsx"`,
+    });
+    return new StreamableFile(buffer);
+  }
 
   /**
    * Register new POSP agent
    */
   @Post('register')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.COMPLIANCE_ADMIN)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.COMPLIANCE_ADMIN, UserRole.RELATIONSHIP_MANAGER)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Register new POSP agent',
@@ -102,7 +204,7 @@ export class POSPController {
    * Update POSP profile
    */
   @Patch(':id')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.COMPLIANCE_ADMIN)
+  @Roles(UserRole.SUPER_ADMIN, UserRole.COMPLIANCE_ADMIN, UserRole.RELATIONSHIP_MANAGER)
   @ApiOperation({
     summary: 'Update POSP profile',
     description: 'Update personal and contact details',

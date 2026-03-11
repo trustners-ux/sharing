@@ -27,20 +27,47 @@ import {
   Star,
   Lock,
   ScrollText,
+  Download,
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+
+// Roles that can see admin-only menu items
+const ADMIN_ROLES = ['SUPER_ADMIN', 'PRINCIPAL_OFFICER', 'COMPLIANCE_ADMIN'];
+
+// Human-readable role labels
+const ROLE_LABELS = {
+  SUPER_ADMIN: 'Super Admin',
+  COMPLIANCE_ADMIN: 'Compliance Admin',
+  FINANCE_ADMIN: 'Finance Admin',
+  REGIONAL_HEAD: 'Regional Head',
+  SUB_BROKER: 'Sub Broker',
+  CLIENT: 'Client',
+  POSP: 'POSP Agent',
+  PRINCIPAL_OFFICER: 'Principal Officer',
+  MIS_MANAGER: 'MIS Manager',
+  MIS_CHECKER: 'MIS Checker',
+  MIS_ENTRY_OPERATOR: 'MIS Entry Operator',
+  RELATIONSHIP_MANAGER: 'Relationship Manager',
+  CLUSTER_DEVELOPMENT_MANAGER: 'Cluster Development Manager',
+  TRAINER: 'Trainer',
+};
 
 const UnifiedLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const { user: authUser, logout } = useAuth();
 
-  // Mock user data - replace with actual from context/state
+  // Derive display data from authenticated user
   const user = {
-    name: 'Rajesh Kumar',
-    role: 'Insurance Broker',
-    avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=RajeshKumar',
+    name: authUser?.name || authUser?.email || 'User',
+    role: ROLE_LABELS[authUser?.role] || authUser?.role || 'User',
+    rawRole: authUser?.role || '',
+    avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(authUser?.name || authUser?.email || 'User')}`,
   };
+
+  const isAdmin = ADMIN_ROLES.includes(user.rawRole);
 
   const isActive = (path) => location.pathname.startsWith(path);
   const isInsuranceSection = location.pathname.startsWith('/insurance');
@@ -67,7 +94,7 @@ const UnifiedLayout = () => {
         { label: 'Claims', icon: Shield, path: '/insurance/claims' },
         { label: 'Endorsements', icon: ClipboardList, path: '/insurance/endorsements' },
         { label: 'Renewals', icon: Calendar, path: '/insurance/renewals' },
-        { label: 'POSP Management', icon: Users, path: '/insurance/posp', adminOnly: true },
+        { label: 'POSP Management', icon: Users, path: '/insurance/posp', roles: ['SUPER_ADMIN', 'PRINCIPAL_OFFICER', 'COMPLIANCE_ADMIN', 'RELATIONSHIP_MANAGER', 'CLUSTER_DEVELOPMENT_MANAGER'] },
         { label: 'Commission', icon: Banknote, path: '/insurance/commissions' },
         { label: 'Support Tickets', icon: MessageSquare, path: '/insurance/tickets' },
         { label: 'Reports', icon: BarChart3, path: '/insurance/reports' },
@@ -120,9 +147,7 @@ const UnifiedLayout = () => {
   ];
 
   const handleLogout = () => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('user');
+    logout();
     navigate('/login');
   };
 
@@ -145,7 +170,9 @@ const UnifiedLayout = () => {
         </h3>
         <div className={`border-l-2 ${borderColor} ml-4`}>
           {section.items.map((item) => {
-            if (item.adminOnly && user.role !== 'Admin') return null;
+            // Role-based visibility: check roles array or adminOnly flag
+            if (item.roles && !item.roles.includes(user.rawRole)) return null;
+            if (item.adminOnly && !isAdmin) return null;
 
             const Icon = item.icon;
             const isCurrentActive = isActive(item.path);
