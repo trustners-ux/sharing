@@ -16,13 +16,13 @@ export const commissionsAPI = {
   // Payouts
   generatePayouts: (data) => api.post('/insurance/commissions/payouts/generate', data),
   getPayouts: (params) => api.get('/insurance/commissions/payouts', { params }),
-  approvePayout: (id) => api.post(`/insurance/commissions/payouts/${id}/approve`),
-  markPaid: (id, data) => api.post(`/insurance/commissions/payouts/${id}/mark-paid`, data),
+  approvePayout: (id) => api.patch(`/insurance/commissions/payouts/${id}/approve`),
+  markPaid: (id, data) => api.patch(`/insurance/commissions/payouts/${id}/mark-paid`, data),
 
   // Reports
   getStatement: (params) => api.get('/insurance/commissions/statement', { params }),
-  getReceivables: (params) => api.get('/insurance/commissions/receivables', { params }),
-  getPayables: (params) => api.get('/insurance/commissions/payables', { params }),
+  getReceivables: (params) => api.get('/insurance/commissions/reports/receivables', { params }),
+  getPayables: (params) => api.get('/insurance/commissions/reports/payables', { params }),
 
   // Payout Config
   getPayoutConfig: (pospId) => api.get(`/insurance/commissions/payout-config/${pospId}`),

@@ -384,6 +384,43 @@ export class InsuranceCommissionsService {
   }
 
   /**
+   * List payouts with filters
+   */
+  async getPayouts(filters: {
+    month?: number;
+    year?: number;
+    status?: string;
+    pospId?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<any> {
+    const { month, year, status, pospId, page = 1, limit = 20 } = filters;
+    const where: any = {};
+    if (month) where.periodMonth = month;
+    if (year) where.periodYear = year;
+    if (status) where.status = status;
+    if (pospId) where.pospId = pospId;
+
+    const [data, total] = await Promise.all([
+      this.prisma.insurancePayout.findMany({
+        where,
+        include: {
+          posp: { select: { id: true, firstName: true, lastName: true, pospCode: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.insurancePayout.count({ where }),
+    ]);
+
+    return {
+      data,
+      pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
+  }
+
+  /**
    * Generate payouts for POSP
    */
   async generatePayouts(month: number, year: number): Promise<any> {

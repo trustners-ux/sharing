@@ -174,6 +174,19 @@ export class EndorsementsService {
   }
 
   /**
+   * Get endorsements for a specific policy
+   */
+  async findByPolicy(policyId: string): Promise<any> {
+    return this.prisma.endorsement.findMany({
+      where: { policyId },
+      include: {
+        statusHistory: { orderBy: { createdAt: 'desc' }, take: 1 },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
    * Update endorsement status
    */
   async updateStatus(

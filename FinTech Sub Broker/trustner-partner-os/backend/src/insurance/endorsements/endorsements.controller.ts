@@ -96,6 +96,19 @@ export class EndorsementsController {
   }
 
   /**
+   * Get endorsements for a specific policy
+   */
+  @Get('policy/:policyId')
+  @ApiOperation({
+    summary: 'Get endorsements by policy',
+    description: 'Get all endorsements for a specific policy',
+  })
+  @ApiResponse({ status: 200, description: 'Policy endorsements list' })
+  async findByPolicy(@Param('policyId') policyId: string) {
+    return this.endorsementsService.findByPolicy(policyId);
+  }
+
+  /**
    * Get single endorsement
    */
   @Get(':id')

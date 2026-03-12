@@ -182,6 +182,33 @@ export class InsuranceCommissionsController {
   }
 
   /**
+   * List payouts with filters
+   */
+  @Get('payouts')
+  @ApiOperation({
+    summary: 'List payouts',
+    description: 'Get payout records with filters',
+  })
+  @ApiResponse({ status: 200, description: 'Payout records' })
+  async getPayouts(
+    @Query('month') month?: string,
+    @Query('year') year?: string,
+    @Query('status') status?: string,
+    @Query('pospId') pospId?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.commissionsService.getPayouts({
+      month: month ? parseInt(month) : undefined,
+      year: year ? parseInt(year) : undefined,
+      status,
+      pospId,
+      page: page ? parseInt(page) : 1,
+      limit: limit ? parseInt(limit) : 20,
+    });
+  }
+
+  /**
    * Generate payouts
    */
   @Post('payouts/generate')
