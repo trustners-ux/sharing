@@ -53,6 +53,7 @@ const ProductCatalogPage = lazy(() => import('./pages/insurance/ProductCatalogPa
 // Pages - Auth & Admin
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const ChangePasswordPage = lazy(() => import('./pages/ChangePasswordPage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const UserManagementPage = lazy(() => import('./pages/admin/UserManagementPage'));
 const AuditLogsPage = lazy(() => import('./pages/admin/AuditLogsPage'));
 
@@ -165,6 +166,9 @@ function App() {
             {/* Insurance Routes - Client Master */}
             <Route path="/insurance/clients" element={<InsuranceClientsPage />} />
             <Route path="/insurance/clients/:id" element={<InsuranceClientDetail />} />
+
+            {/* Profile Route */}
+            <Route path="/profile" element={<ProfilePage />} />
 
             {/* Admin Routes - restricted to SUPER_ADMIN & PRINCIPAL_OFFICER */}
             <Route path="/admin/users" element={<UserManagementPage />} />

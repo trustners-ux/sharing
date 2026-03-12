@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   Body,
   Param,
   Query,
@@ -96,6 +97,194 @@ export class AuthController {
   @ApiOperation({ summary: 'Logout user' })
   async logout(@CurrentUser() user: any) {
     return this.authService.logout(user.id);
+  }
+
+  // ============================================================================
+  // PROFILE MANAGEMENT ENDPOINTS
+  // ============================================================================
+
+  /**
+   * Get current user's full profile (user + profile details)
+   */
+  @Get('profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('jwt')
+  @ApiOperation({ summary: 'Get current user full profile' })
+  async getProfile(@CurrentUser() user: any) {
+    const fullUser = await this.prismaService.user.findUnique({
+      where: { id: user.id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        phone: true,
+        role: true,
+        isActive: true,
+        isApproved: true,
+        createdAt: true,
+        lastLoginAt: true,
+        profile: true,
+      },
+    });
+
+    if (!fullUser) {
+      throw new BadRequestException('User not found');
+    }
+
+    return fullUser;
+  }
+
+  /**
+   * Update current user's profile (name, phone, profile details, avatar)
+   */
+  @Patch('profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('jwt')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Update current user profile' })
+  async updateProfile(
+    @CurrentUser() currentUser: any,
+    @Body()
+    body: {
+      name?: string;
+      phone?: string;
+      firstName?: string;
+      lastName?: string;
+      displayName?: string;
+      dateOfBirth?: string;
+      gender?: string;
+      avatarUrl?: string;
+      addressLine1?: string;
+      addressLine2?: string;
+      city?: string;
+      state?: string;
+      pincode?: string;
+    },
+  ) {
+    // Update User table fields
+    const userUpdate: any = {};
+    if (body.name !== undefined) userUpdate.name = body.name;
+    if (body.phone !== undefined) userUpdate.phone = body.phone;
+
+    if (Object.keys(userUpdate).length > 0) {
+      await this.prismaService.user.update({
+        where: { id: currentUser.id },
+        data: userUpdate,
+      });
+    }
+
+    // Update or create UserProfile
+    const profileData: any = {};
+    if (body.firstName !== undefined) profileData.firstName = body.firstName;
+    if (body.lastName !== undefined) profileData.lastName = body.lastName;
+    if (body.displayName !== undefined) profileData.displayName = body.displayName;
+    if (body.dateOfBirth !== undefined)
+      profileData.dateOfBirth = body.dateOfBirth ? new Date(body.dateOfBirth) : null;
+    if (body.gender !== undefined) profileData.gender = body.gender;
+    if (body.avatarUrl !== undefined) profileData.avatarUrl = body.avatarUrl;
+    if (body.addressLine1 !== undefined) profileData.addressLine1 = body.addressLine1;
+    if (body.addressLine2 !== undefined) profileData.addressLine2 = body.addressLine2;
+    if (body.city !== undefined) profileData.city = body.city;
+    if (body.state !== undefined) profileData.state = body.state;
+    if (body.pincode !== undefined) profileData.pincode = body.pincode;
+
+    if (Object.keys(profileData).length > 0) {
+      const existingProfile = await this.prismaService.userProfile.findUnique({
+        where: { userId: currentUser.id },
+      });
+
+      if (existingProfile) {
+        await this.prismaService.userProfile.update({
+          where: { userId: currentUser.id },
+          data: profileData,
+        });
+      } else {
+        await this.prismaService.userProfile.create({
+          data: {
+            userId: currentUser.id,
+            firstName: body.firstName || '',
+            lastName: body.lastName || '',
+            ...profileData,
+          },
+        });
+      }
+    }
+
+    // Audit log
+    await this.prismaService.auditLog.create({
+      data: {
+        userId: currentUser.id,
+        action: 'UPDATE',
+        entity: 'UserProfile',
+        entityId: currentUser.id,
+        description: 'User updated their profile',
+      },
+    });
+
+    // Return updated user with profile
+    return this.prismaService.user.findUnique({
+      where: { id: currentUser.id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        phone: true,
+        role: true,
+        isActive: true,
+        isApproved: true,
+        createdAt: true,
+        lastLoginAt: true,
+        profile: true,
+      },
+    });
+  }
+
+  /**
+   * Upload profile avatar (base64 data URI)
+   */
+  @Post('profile/avatar')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('jwt')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Upload profile avatar' })
+  async uploadAvatar(
+    @CurrentUser() currentUser: any,
+    @Body() body: { avatarUrl: string },
+  ) {
+    if (!body.avatarUrl) {
+      throw new BadRequestException('avatarUrl is required');
+    }
+
+    // Validate it's a reasonable data URI or URL (max 500KB base64)
+    if (body.avatarUrl.startsWith('data:image/')) {
+      const sizeInBytes = Math.ceil((body.avatarUrl.length * 3) / 4);
+      if (sizeInBytes > 512000) {
+        throw new BadRequestException('Image must be under 500KB. Please choose a smaller image or crop it.');
+      }
+    }
+
+    // Upsert profile with avatar
+    const existingProfile = await this.prismaService.userProfile.findUnique({
+      where: { userId: currentUser.id },
+    });
+
+    if (existingProfile) {
+      await this.prismaService.userProfile.update({
+        where: { userId: currentUser.id },
+        data: { avatarUrl: body.avatarUrl },
+      });
+    } else {
+      await this.prismaService.userProfile.create({
+        data: {
+          userId: currentUser.id,
+          firstName: '',
+          lastName: '',
+          avatarUrl: body.avatarUrl,
+        },
+      });
+    }
+
+    return { avatarUrl: body.avatarUrl, message: 'Avatar updated successfully' };
   }
 
   // ============================================================================

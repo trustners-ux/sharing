@@ -65,11 +65,12 @@ const UnifiedLayout = () => {
   const { user: authUser, logout } = useAuth();
 
   // Derive display data from authenticated user
+  const defaultAvatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(authUser?.name || authUser?.email || 'User')}`;
   const user = {
     name: authUser?.name || authUser?.email || 'User',
     role: ROLE_LABELS[authUser?.role] || authUser?.role || 'User',
     rawRole: authUser?.role || '',
-    avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(authUser?.name || authUser?.email || 'User')}`,
+    avatar: authUser?.avatarUrl || defaultAvatar,
   };
 
   const isAdmin = ADMIN_ROLES.includes(user.rawRole);

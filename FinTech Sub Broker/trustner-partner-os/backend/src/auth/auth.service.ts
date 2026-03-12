@@ -264,6 +264,12 @@ export class AuthService {
 
     this.logger.log(`User logged in successfully: ${email}`);
 
+    // Fetch profile for avatar
+    const profile = await this.prismaService.userProfile.findUnique({
+      where: { userId: user.id },
+      select: { avatarUrl: true },
+    });
+
     return {
       accessToken,
       refreshToken,
@@ -271,8 +277,10 @@ export class AuthService {
         id: user.id,
         email: user.email,
         name: user.name,
+        phone: user.phone,
         role: user.role,
         mustChangePassword: user.mustChangePassword,
+        avatarUrl: profile?.avatarUrl || null,
       },
     };
   }
@@ -435,6 +443,14 @@ export class AuthService {
         mustChangePassword: true,
         createdAt: true,
         lastLoginAt: true,
+        profile: {
+          select: {
+            avatarUrl: true,
+            firstName: true,
+            lastName: true,
+            displayName: true,
+          },
+        },
       },
     });
   }
