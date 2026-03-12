@@ -1,5 +1,6 @@
 import { PrismaClient, UserRole } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
+import { TIER_SHARING_SEED, PRODUCT_CATALOG_SEED } from './insurance/posp-category/seed-data';
 
 const prisma = new PrismaClient();
 
@@ -364,6 +365,60 @@ async function main() {
     }
 
     // ============================================================================
+    // POSP CATEGORY BROKERAGE — Tier Sharing Matrix (30 configs)
+    // ============================================================================
+    console.log('\n📊 Seeding POSP tier sharing matrix (10 categories × 3 tiers)...');
+
+    let tierSharingCreated = 0;
+    for (const ts of TIER_SHARING_SEED) {
+      const existing = await prisma.tierSharingConfig.findFirst({
+        where: {
+          category: ts.category as any,
+          tier: ts.tier as any,
+          isActive: true,
+        },
+      });
+      if (!existing) {
+        await prisma.tierSharingConfig.create({
+          data: {
+            category: ts.category as any,
+            tier: ts.tier as any,
+            sharingPercent: ts.sharingPercent,
+            isActive: true,
+          },
+        });
+        tierSharingCreated++;
+      }
+    }
+    console.log(`  ✓ Tier sharing configs: ${tierSharingCreated} created (${TIER_SHARING_SEED.length - tierSharingCreated} already existed)`);
+
+    // ============================================================================
+    // POSP CATEGORY BROKERAGE — Product Catalog (245 products)
+    // ============================================================================
+    console.log('\n📦 Seeding product catalog (245 products: 144 GI + 75 LI + 26 HI)...');
+
+    const existingProductCount = await prisma.commissionProduct.count();
+    let productsCreated = 0;
+    if (existingProductCount === 0) {
+      // Bulk create all products
+      await prisma.commissionProduct.createMany({
+        data: PRODUCT_CATALOG_SEED.map(p => ({
+          lob: p.lob as any,
+          productLine: p.productLine,
+          productName: p.productName,
+          insurer: p.insurer,
+          trustnerCommission: p.trustnerCommission,
+          basis: p.basis,
+          isActive: true,
+        })),
+      });
+      productsCreated = PRODUCT_CATALOG_SEED.length;
+      console.log(`  ✓ Product catalog: ${productsCreated} products created`);
+    } else {
+      console.log(`  ⏩ Product catalog: ${existingProductCount} products already exist (skipping seed)`);
+    }
+
+    // ============================================================================
     // SUMMARY
     // ============================================================================
     console.log('\n✅ Database seed completed successfully!');
@@ -374,6 +429,8 @@ async function main() {
     console.log('   Branches: 1 (Trustner Head Office)');
     console.log('   MIS Role Configs: 6');
     console.log('   Checker Assignment Rules: 4');
+    console.log(`   Tier Sharing Configs: ${tierSharingCreated} created`);
+    console.log(`   Commission Products: ${productsCreated} created`);
     console.log('\n🔐 Login Credentials (all users must change password on first login):');
     console.log('   1. ram@trustner.in / Trustner@2026 (SUPER_ADMIN)');
     console.log('   2. sangeeta@trustner.in / Trustner@2026 (SUPER_ADMIN)');
