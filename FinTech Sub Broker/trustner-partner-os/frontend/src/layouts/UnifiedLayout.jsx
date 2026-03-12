@@ -31,6 +31,8 @@ import {
   Contact,
   Car,
   PlusCircle,
+  Award,
+  Package,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -118,6 +120,8 @@ const UnifiedLayout = () => {
         { label: 'Payout Config', icon: DollarSign, path: '/insurance/payout-config', adminOnly: true },
         { label: 'Hierarchy', icon: GitBranch, path: '/insurance/hierarchy', adminOnly: true },
         { label: 'Product Grades', icon: Star, path: '/insurance/product-grades', adminOnly: true },
+        { label: 'POSP Categories', icon: Award, path: '/insurance/posp-categories', adminOnly: true },
+        { label: 'Product Catalog', icon: Package, path: '/insurance/product-catalog' },
         { label: 'Contests', icon: Trophy, path: '/insurance/contests' },
         { label: 'My Dashboard', icon: Home, path: '/insurance/posp-dashboard', roles: ['POSP'] },
       ],

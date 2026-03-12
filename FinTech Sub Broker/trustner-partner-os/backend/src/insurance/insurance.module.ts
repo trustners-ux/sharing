@@ -17,6 +17,7 @@ import { ProductGradeModule } from './product-grade/product-grade.module';
 import { MISModule } from './mis/mis.module';
 import { ContestModule } from './contest/contest.module';
 import { InsuranceClientsModule } from './clients/insurance-clients.module';
+import { PospCategoryModule } from './posp-category/posp-category.module';
 
 /**
  * Insurance Broking Module
@@ -45,6 +46,7 @@ import { InsuranceClientsModule } from './clients/insurance-clients.module';
     MISModule,
     ContestModule,
     InsuranceClientsModule,
+    PospCategoryModule,
   ],
   controllers: [],
   providers: [],
@@ -66,6 +68,7 @@ import { InsuranceClientsModule } from './clients/insurance-clients.module';
     MISModule,
     ContestModule,
     InsuranceClientsModule,
+    PospCategoryModule,
   ],
 })
 export class InsuranceModule {}

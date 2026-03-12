@@ -47,6 +47,8 @@ const QuotationPage = lazy(() => import('./pages/insurance/QuotationPage'));
 const PolicyEntryForm = lazy(() => import('./pages/insurance/PolicyEntryForm'));
 const EndorsementEntryForm = lazy(() => import('./pages/insurance/EndorsementEntryForm'));
 const CommissionPayoutDashboard = lazy(() => import('./pages/insurance/CommissionPayoutDashboard'));
+const POSPCategoryPage = lazy(() => import('./pages/insurance/POSPCategoryPage'));
+const ProductCatalogPage = lazy(() => import('./pages/insurance/ProductCatalogPage'));
 
 // Pages - Auth & Admin
 const LoginPage = lazy(() => import('./pages/LoginPage'));
@@ -156,6 +158,8 @@ function App() {
             <Route path="/insurance/contests" element={<ContestManagement />} />
             <Route path="/insurance/contests/:id" element={<ContestDetail />} />
             <Route path="/insurance/payout-config" element={<PayoutConfigPage />} />
+            <Route path="/insurance/posp-categories" element={<POSPCategoryPage />} />
+            <Route path="/insurance/product-catalog" element={<ProductCatalogPage />} />
             <Route path="/insurance/posp-dashboard" element={<POSPDashboardPage />} />
 
             {/* Insurance Routes - Client Master */}
