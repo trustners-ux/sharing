@@ -159,7 +159,7 @@ const UnifiedDashboard = () => {
                 icon={DollarSign}
                 color="bg-blue-600"
                 trend="+12.5% YoY"
-                onClick={() => window.open('https://investwell.example.com', '_blank')}
+                onClick={() => window.open('https://trustner.investwell.app/app/#/login', '_blank')}
               />
 
               <StatCard
@@ -179,10 +179,10 @@ const UnifiedDashboard = () => {
               />
 
               <button
-                onClick={() => window.open('https://investwell.example.com', '_blank')}
+                onClick={() => window.open('https://trustner.investwell.app/app/#/login', '_blank')}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
               >
-                Go to InvestWell <ExternalLink className="w-4 h-4" />
+                Go to MF Dashboard <ExternalLink className="w-4 h-4" />
               </button>
             </div>
           </div>
