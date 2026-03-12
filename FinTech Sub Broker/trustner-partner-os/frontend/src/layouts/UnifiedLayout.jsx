@@ -29,6 +29,8 @@ import {
   ScrollText,
   Download,
   Contact,
+  Car,
+  PlusCircle,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -90,14 +92,17 @@ const UnifiedLayout = () => {
       color: 'teal',
       items: [
         { label: 'IB Dashboard', icon: Home, path: '/insurance/dashboard' },
+        { label: 'Quotations', icon: Car, path: '/insurance/quotations' },
         { label: 'Leads', icon: Users, path: '/insurance/leads' },
         { label: 'Policies', icon: FileText, path: '/insurance/policies' },
+        { label: 'New Policy', icon: PlusCircle, path: '/insurance/policies/new' },
         { label: 'Claims', icon: Shield, path: '/insurance/claims' },
         { label: 'Endorsements', icon: ClipboardList, path: '/insurance/endorsements' },
         { label: 'Renewals', icon: Calendar, path: '/insurance/renewals' },
         { label: 'Clients', icon: Contact, path: '/insurance/clients' },
         { label: 'POSP Management', icon: Users, path: '/insurance/posp', roles: ['SUPER_ADMIN', 'PRINCIPAL_OFFICER', 'COMPLIANCE_ADMIN', 'RELATIONSHIP_MANAGER', 'CLUSTER_DEVELOPMENT_MANAGER'] },
         { label: 'Commission', icon: Banknote, path: '/insurance/commissions' },
+        { label: 'Payouts', icon: DollarSign, path: '/insurance/commissions/payouts', roles: ['SUPER_ADMIN', 'PRINCIPAL_OFFICER', 'FINANCE_ADMIN'] },
         { label: 'Support Tickets', icon: MessageSquare, path: '/insurance/tickets' },
         { label: 'Reports', icon: BarChart3, path: '/insurance/reports' },
       ],

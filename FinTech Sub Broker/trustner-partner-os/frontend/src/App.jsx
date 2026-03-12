@@ -43,6 +43,10 @@ const PayoutConfigPage = lazy(() => import('./pages/insurance/PayoutConfigPage')
 const POSPDashboardPage = lazy(() => import('./pages/insurance/POSPDashboardPage'));
 const InsuranceClientsPage = lazy(() => import('./pages/insurance/InsuranceClientsPage'));
 const InsuranceClientDetail = lazy(() => import('./pages/insurance/InsuranceClientDetail'));
+const QuotationPage = lazy(() => import('./pages/insurance/QuotationPage'));
+const PolicyEntryForm = lazy(() => import('./pages/insurance/PolicyEntryForm'));
+const EndorsementEntryForm = lazy(() => import('./pages/insurance/EndorsementEntryForm'));
+const CommissionPayoutDashboard = lazy(() => import('./pages/insurance/CommissionPayoutDashboard'));
 
 // Pages - Auth & Admin
 const LoginPage = lazy(() => import('./pages/LoginPage'));
@@ -106,14 +110,19 @@ function App() {
 
             {/* Insurance Routes - Policies */}
             <Route path="/insurance/policies" element={<PoliciesPage />} />
+            <Route path="/insurance/policies/new" element={<PolicyEntryForm />} />
             <Route path="/insurance/policies/:id" element={<PolicyDetail />} />
 
             {/* Insurance Routes - Claims */}
             <Route path="/insurance/claims" element={<ClaimsPage />} />
             <Route path="/insurance/claims/:id" element={<ClaimDetail />} />
 
+            {/* Insurance Routes - Quotations */}
+            <Route path="/insurance/quotations" element={<QuotationPage />} />
+
             {/* Insurance Routes - Endorsements */}
             <Route path="/insurance/endorsements" element={<EndorsementsPage />} />
+            <Route path="/insurance/endorsements/new" element={<EndorsementEntryForm />} />
 
             {/* Insurance Routes - Renewals */}
             <Route path="/insurance/renewals" element={<RenewalsPage />} />
@@ -124,6 +133,7 @@ function App() {
 
             {/* Insurance Routes - Commission */}
             <Route path="/insurance/commissions" element={<IBCommissionPage />} />
+            <Route path="/insurance/commissions/payouts" element={<CommissionPayoutDashboard />} />
 
             {/* Insurance Routes - Support Tickets */}
             <Route path="/insurance/tickets" element={<TicketsPage />} />
