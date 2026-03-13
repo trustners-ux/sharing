@@ -32,4 +32,9 @@ export class DataMigrationController {
   importRenewalDue(@Body() body: { rows: any[] }, @Request() req: any) {
     return this.migrationService.importRenewalDue(body.rows, req.user.id);
   }
+
+  @Post('sync-to-policies')
+  syncToInsurancePolicies(@Request() req: any) {
+    return this.migrationService.syncMISToInsurancePolicies(req.user.id);
+  }
 }

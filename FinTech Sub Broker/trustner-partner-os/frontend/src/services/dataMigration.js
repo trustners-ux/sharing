@@ -6,6 +6,7 @@ export const dataMigrationAPI = {
   importPolicyRegister: (rows) => api.post('/insurance/data-migration/policy-register', { rows }),
   importPayoutData: (rows) => api.post('/insurance/data-migration/payout-data', { rows }),
   importRenewalDue: (rows) => api.post('/insurance/data-migration/renewal-due', { rows }),
+  syncToInsurancePolicies: () => api.post('/insurance/data-migration/sync-to-policies'),
 }
 
 export default dataMigrationAPI

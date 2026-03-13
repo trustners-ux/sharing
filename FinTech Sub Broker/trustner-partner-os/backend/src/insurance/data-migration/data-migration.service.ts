@@ -1,5 +1,7 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { PolicyStatus } from '@prisma/client';
+import dayjs from 'dayjs';
 
 @Injectable()
 export class DataMigrationService {
@@ -366,13 +368,136 @@ export class DataMigrationService {
     return results;
   }
 
-  // ─── 5. Get migration status ──────────────────────────────
+  // ─── 5. SYNC MIS Entries → InsurancePolicy ─────────────────
+  // This creates InsurancePolicy records from VJ Infosoft imported MISEntry data
+  // so they appear in the IB Dashboard and Policies page
+  async syncMISToInsurancePolicies(userId: string) {
+    this.logger.log('Syncing VJ Infosoft MIS entries to InsurancePolicy table...');
+
+    const results = { synced: 0, skipped: 0, errors: [] as string[] };
+
+    // Get all VJ Infosoft imported MIS entries that have a policy number
+    const misEntries = await this.prisma.mISEntry.findMany({
+      where: {
+        sourceType: 'VJ_INFOSOFT_IMPORT',
+        policyNumber: { not: null },
+      },
+    });
+
+    this.logger.log(`Found ${misEntries.length} VJ Infosoft MIS entries to sync`);
+
+    // Get existing InsurancePolicy numbers to avoid duplicates
+    const existingPolicies = await this.prisma.insurancePolicy.findMany({
+      select: { policyNumber: true },
+    });
+    const existingPolicySet = new Set(existingPolicies.map(p => p.policyNumber?.toUpperCase()));
+
+    // Get or create a default POSP agent for imported data
+    const defaultPosp = await this.getOrCreateDefaultPosp(userId);
+
+    // Cache for companies and products (to avoid repeated lookups)
+    const companyCache: Record<string, string> = {};
+    const productCache: Record<string, string> = {};
+
+    let seqCounter = await this.prisma.insurancePolicy.count();
+
+    for (const mis of misEntries) {
+      try {
+        if (!mis.policyNumber) {
+          results.skipped++;
+          continue;
+        }
+
+        // Skip if already synced
+        if (existingPolicySet.has(mis.policyNumber.toUpperCase())) {
+          results.skipped++;
+          continue;
+        }
+
+        // Resolve LOB enum - ensure it's a valid InsuranceLOB value
+        const lob = this.resolveValidLOB(mis.lob);
+
+        // Get or create company
+        const companyName = mis.insurerName || 'Unknown Insurer';
+        const companyId = await this.getOrCreateCompany(companyName, companyCache);
+
+        // Get or create product
+        const productName = mis.policyType || `${lob} Policy`;
+        const productKey = `${companyId}_${productName}`;
+        const productId = await this.getOrCreateProduct(productName, companyId, lob, productCache, productKey);
+
+        // Generate internal ref code
+        seqCounter++;
+        const datePrefix = dayjs(mis.entryDate || mis.createdAt).format('YYYYMMDD');
+        const internalRefCode = `TIBPL-POL-${datePrefix}-${String(seqCounter).padStart(5, '0')}`;
+
+        // Calculate premium fields
+        const netPremium = mis.netPremium ? Number(mis.netPremium) : 0;
+        const gstAmount = mis.gstAmount ? Number(mis.gstAmount) : 0;
+        const grossPremium = mis.grossPremium ? Number(mis.grossPremium) : 0;
+        const odPremium = mis.odPremium ? Number(mis.odPremium) : 0;
+        const tpPremium = mis.tpPremium ? Number(mis.tpPremium) : 0;
+        const basePremium = odPremium + tpPremium || netPremium;
+        const totalPremium = grossPremium || (netPremium + gstAmount) || netPremium;
+        const sumInsured = mis.sumInsured ? Number(mis.sumInsured) : 0;
+
+        // Determine policy status based on dates
+        const now = new Date();
+        const endDate = mis.policyEndDate;
+        let status: PolicyStatus = PolicyStatus.POLICY_ACTIVE;
+        if (endDate && endDate < now) {
+          status = PolicyStatus.POLICY_EXPIRED;
+        }
+
+        await this.prisma.insurancePolicy.create({
+          data: {
+            policyNumber: mis.policyNumber,
+            internalRefCode,
+            pospId: defaultPosp.id,
+            companyId,
+            productId,
+            lob: lob as any,
+            status,
+            customerName: mis.customerName || 'Unknown',
+            customerPhone: mis.customerPhone || 'N/A',
+            customerEmail: mis.customerEmail,
+            sumInsured,
+            basePremium,
+            addOnPremium: 0,
+            gstAmount,
+            totalPremium,
+            stampDuty: 0,
+            netPremium,
+            startDate: mis.policyStartDate,
+            endDate: mis.policyEndDate,
+            vehicleRegNumber: mis.vehicleRegNo,
+            vehicleMake: mis.vehicleMake,
+            policyType: mis.policyType,
+            remarks: `Imported from VJ Infosoft. MIS Code: ${mis.misCode}`,
+            createdAt: mis.entryDate || mis.createdAt,
+          },
+        });
+
+        existingPolicySet.add(mis.policyNumber.toUpperCase());
+        results.synced++;
+      } catch (err) {
+        results.errors.push(`MIS ${mis.misCode} (${mis.policyNumber}): ${err.message}`);
+      }
+    }
+
+    this.logger.log(`Sync complete: ${results.synced} synced, ${results.skipped} skipped, ${results.errors.length} errors`);
+    return results;
+  }
+
+  // ─── 6. Get migration status ──────────────────────────────
   async getMigrationStatus() {
-    const [totalClients, totalMIS, importedMIS, importedClients] = await Promise.all([
+    const [totalClients, totalMIS, importedMIS, importedClients, totalPolicies, syncedPolicies] = await Promise.all([
       this.prisma.insuranceClient.count(),
       this.prisma.mISEntry.count(),
       this.prisma.mISEntry.count({ where: { sourceType: 'VJ_INFOSOFT_IMPORT' } }),
       this.prisma.insuranceClient.count(),
+      this.prisma.insurancePolicy.count(),
+      this.prisma.insurancePolicy.count({ where: { remarks: { contains: 'VJ Infosoft' } } }),
     ]);
 
     return {
@@ -380,14 +505,113 @@ export class DataMigrationService {
       totalMISEntries: totalMIS,
       importedFromVJ: importedMIS,
       importedClients,
+      totalInsurancePolicies: totalPolicies,
+      syncedToInsurancePolicy: syncedPolicies,
+      needsSync: importedMIS - syncedPolicies,
     };
   }
 
-  // ─── Helper: entry month ──────────────────────────────────
+  // ─── Private helpers ──────────────────────────────────────
+
   private getEntryMonth(date?: Date | null): string {
     const d = date || new Date();
     const months = ['January', 'February', 'March', 'April', 'May', 'June',
       'July', 'August', 'September', 'October', 'November', 'December'];
     return `${months[d.getMonth()]} ${d.getFullYear()}`;
+  }
+
+  /** Ensure LOB value is a valid Prisma InsuranceLOB enum */
+  private resolveValidLOB(lob: string | null): string {
+    const validLOBs = [
+      'MOTOR_TWO_WHEELER', 'MOTOR_FOUR_WHEELER', 'MOTOR_COMMERCIAL',
+      'HEALTH_INDIVIDUAL', 'HEALTH_FAMILY_FLOATER', 'HEALTH_GROUP',
+      'HEALTH_CRITICAL_ILLNESS', 'HEALTH_TOP_UP',
+      'LIFE_TERM', 'LIFE_ENDOWMENT', 'LIFE_ULIP', 'LIFE_WHOLE_LIFE',
+      'TRAVEL', 'HOME', 'FIRE', 'MARINE', 'LIABILITY', 'PA', 'OTHER',
+    ];
+    if (lob && validLOBs.includes(lob)) return lob;
+    if (lob === 'PERSONAL_ACCIDENT') return 'PA';
+    return 'OTHER';
+  }
+
+  /** Get or create a default POSP for VJ imports */
+  private async getOrCreateDefaultPosp(userId: string) {
+    const existing = await this.prisma.pOSPAgent.findFirst({
+      where: { agentCode: 'TIBPL-VJ-DEFAULT' },
+    });
+    if (existing) return existing;
+
+    return this.prisma.pOSPAgent.create({
+      data: {
+        agentCode: 'TIBPL-VJ-DEFAULT',
+        firstName: 'VJ Infosoft',
+        lastName: 'Import',
+        phone: '0000000000',
+        email: 'vjimport@trustner.in',
+        status: 'ACTIVE',
+      },
+    });
+  }
+
+  /** Get or create insurance company by name */
+  private async getOrCreateCompany(
+    companyName: string,
+    cache: Record<string, string>,
+  ): Promise<string> {
+    const key = companyName.toUpperCase().trim();
+    if (cache[key]) return cache[key];
+
+    // Try exact match first
+    const existing = await this.prisma.insuranceCompany.findFirst({
+      where: { companyName: { equals: companyName, mode: 'insensitive' } },
+    });
+    if (existing) {
+      cache[key] = existing.id;
+      return existing.id;
+    }
+
+    // Create new
+    const company = await this.prisma.insuranceCompany.create({
+      data: {
+        companyName,
+        shortCode: companyName.replace(/[^A-Z]/gi, '').substring(0, 8).toUpperCase() || 'UNK',
+        status: 'ACTIVE',
+      },
+    });
+    cache[key] = company.id;
+    return company.id;
+  }
+
+  /** Get or create insurance product */
+  private async getOrCreateProduct(
+    productName: string,
+    companyId: string,
+    lob: string,
+    cache: Record<string, string>,
+    cacheKey: string,
+  ): Promise<string> {
+    if (cache[cacheKey]) return cache[cacheKey];
+
+    const existing = await this.prisma.insuranceProduct.findFirst({
+      where: {
+        productName: { equals: productName, mode: 'insensitive' },
+        companyId,
+      },
+    });
+    if (existing) {
+      cache[cacheKey] = existing.id;
+      return existing.id;
+    }
+
+    const product = await this.prisma.insuranceProduct.create({
+      data: {
+        productName,
+        companyId,
+        lob: lob as any,
+        status: 'ACTIVE',
+      },
+    });
+    cache[cacheKey] = product.id;
+    return product.id;
   }
 }

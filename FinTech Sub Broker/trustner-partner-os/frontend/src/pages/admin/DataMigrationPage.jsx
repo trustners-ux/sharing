@@ -262,6 +262,8 @@ function DatasetCard({ dataset, onImport, importState }) {
 export default function DataMigrationPage() {
   const [status, setStatus] = useState(null);
   const [importStates, setImportStates] = useState({});
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState(null);
 
   useEffect(() => {
     loadStatus();
@@ -344,11 +346,80 @@ export default function DataMigrationPage() {
 
       {/* Status Cards */}
       {status && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <StatusCard label="Total Clients" value={status.totalClients} color="teal" />
-          <StatusCard label="Total MIS Entries" value={status.totalMISEntries} color="blue" />
-          <StatusCard label="Imported from VJ" value={status.importedFromVJ} color="green" />
-          <StatusCard label="Client Records" value={status.importedClients} color="amber" />
+          <StatusCard label="MIS Entries (VJ)" value={status.importedFromVJ} color="blue" />
+          <StatusCard label="Insurance Policies" value={status.totalInsurancePolicies} color="green" />
+          <StatusCard label="Needs Sync" value={status.needsSync > 0 ? status.needsSync : 0} color="amber" />
+        </div>
+      )}
+
+      {/* Sync to Insurance Policies */}
+      {status && status.importedFromVJ > 0 && (
+        <div className="bg-purple-50 border border-purple-200 rounded-lg p-5 mb-8">
+          <div className="flex items-start justify-between">
+            <div>
+              <h3 className="font-semibold text-purple-900 text-lg">
+                Step 5: Sync to Insurance Policies
+              </h3>
+              <p className="text-sm text-purple-700 mt-1">
+                After importing data into MIS entries, sync them to the <strong>InsurancePolicy</strong> table
+                so they appear in the <strong>Insurance Broking Dashboard</strong> and <strong>Policies</strong> page.
+              </p>
+              <p className="text-xs text-purple-500 mt-2">
+                {status.syncedToInsurancePolicy || 0} of {status.importedFromVJ} already synced
+                {status.needsSync > 0 && ` · ${status.needsSync} remaining`}
+              </p>
+            </div>
+            <button
+              onClick={async () => {
+                setSyncing(true);
+                setSyncResult(null);
+                try {
+                  const result = await dataMigrationAPI.syncToInsurancePolicies();
+                  setSyncResult(result);
+                  loadStatus();
+                } catch (err) {
+                  setSyncResult({ error: err?.response?.data?.message || err.message });
+                } finally {
+                  setSyncing(false);
+                }
+              }}
+              disabled={syncing}
+              className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition font-medium text-sm flex items-center gap-2 whitespace-nowrap"
+            >
+              {syncing ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Syncing...
+                </>
+              ) : (
+                '🔄 Sync to Policies'
+              )}
+            </button>
+          </div>
+          {syncResult && !syncResult.error && (
+            <div className="mt-3 text-sm">
+              <span className="text-green-600 font-medium">{syncResult.synced} synced</span>
+              {syncResult.skipped > 0 && <span className="text-gray-500 ml-3">{syncResult.skipped} already existed</span>}
+              {syncResult.errors?.length > 0 && (
+                <details className="mt-2 text-xs">
+                  <summary className="text-red-600 cursor-pointer">{syncResult.errors.length} errors</summary>
+                  <ul className="mt-1 text-red-500 list-disc pl-4 max-h-32 overflow-y-auto">
+                    {syncResult.errors.slice(0, 20).map((err, i) => (
+                      <li key={i}>{err}</li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </div>
+          )}
+          {syncResult?.error && (
+            <div className="mt-3 text-sm text-red-600">{syncResult.error}</div>
+          )}
         </div>
       )}
 
@@ -360,6 +431,7 @@ export default function DataMigrationPage() {
           <li><strong>GI Policy Register</strong> - Import policy records (creates MIS entries)</li>
           <li><strong>POS Payout / Commission</strong> - Enriches MIS entries with commission data</li>
           <li><strong>Renewal Due Report</strong> - Marks policies due for renewal</li>
+          <li><strong>Sync to Policies</strong> - Creates InsurancePolicy records for IB Dashboard &amp; Policies page</li>
         </ol>
       </div>
 
