@@ -33,6 +33,7 @@ import {
   PlusCircle,
   Award,
   Package,
+  Database,
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -148,6 +149,7 @@ const UnifiedLayout = () => {
       items: [
         { label: 'User Management', icon: Users, path: '/admin/users', adminOnly: true },
         { label: 'Audit Logs', icon: ScrollText, path: '/admin/audit-logs', adminOnly: true },
+        { label: 'Data Migration', icon: Database, path: '/admin/data-migration', adminOnly: true },
         { label: 'Change Password', icon: Lock, path: '/change-password' },
       ],
     },

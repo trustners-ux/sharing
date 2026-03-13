@@ -56,6 +56,7 @@ const ChangePasswordPage = lazy(() => import('./pages/ChangePasswordPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const UserManagementPage = lazy(() => import('./pages/admin/UserManagementPage'));
 const AuditLogsPage = lazy(() => import('./pages/admin/AuditLogsPage'));
+const DataMigrationPage = lazy(() => import('./pages/admin/DataMigrationPage'));
 
 // Pages - AI Advisory
 const AdvisoryDashboard = lazy(() => import('./pages/advisory/AdvisoryDashboard'));
@@ -173,6 +174,7 @@ function App() {
             {/* Admin Routes - restricted to SUPER_ADMIN & PRINCIPAL_OFFICER */}
             <Route path="/admin/users" element={<UserManagementPage />} />
             <Route path="/admin/audit-logs" element={<AuditLogsPage />} />
+            <Route path="/admin/data-migration" element={<DataMigrationPage />} />
 
             {/* AI Advisory Routes */}
             <Route path="/advisory" element={<AdvisoryDashboard />} />
