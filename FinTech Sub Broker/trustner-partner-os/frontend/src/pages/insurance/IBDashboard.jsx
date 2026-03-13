@@ -4,10 +4,9 @@ import {
   DollarSign,
   Shield,
   AlertCircle,
-  PieChart,
-  BarChart3,
   Clock,
   Users,
+  RefreshCw,
 } from 'lucide-react';
 import {
   BarChart,
@@ -25,24 +24,59 @@ import {
 import { formatCurrency, formatIndianNumber } from '../../utils/formatters';
 import api from '../../services/api';
 
+// LOB enum → display
+const LOB_MAP = {
+  MOTOR_TWO_WHEELER: 'Motor 2W',
+  MOTOR_FOUR_WHEELER: 'Motor 4W',
+  MOTOR_COMMERCIAL: 'Motor CV',
+  HEALTH_INDIVIDUAL: 'Health Indiv.',
+  HEALTH_FAMILY_FLOATER: 'Health Family',
+  HEALTH_GROUP: 'Health Group',
+  HEALTH_CRITICAL_ILLNESS: 'Critical Illness',
+  HEALTH_TOP_UP: 'Health Top-Up',
+  LIFE_TERM: 'Life Term',
+  LIFE_ENDOWMENT: 'Life Endow.',
+  LIFE_ULIP: 'Life ULIP',
+  LIFE_WHOLE_LIFE: 'Life Whole',
+  TRAVEL: 'Travel',
+  HOME: 'Home',
+  FIRE: 'Fire',
+  MARINE: 'Marine',
+  LIABILITY: 'Liability',
+  PA: 'PA',
+  OTHER: 'Other',
+};
+
+// Status → display
+const STATUS_MAP = {
+  QUOTE_GENERATED: 'Quote',
+  PROPOSAL_SUBMITTED: 'Proposal',
+  PAYMENT_PENDING: 'Pmt Pending',
+  POLICY_ISSUED: 'Issued',
+  POLICY_ACTIVE: 'Active',
+  POLICY_EXPIRED: 'Expired',
+  POLICY_CANCELLED: 'Cancelled',
+};
+
 const IBDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [dashboardData, setDashboardData] = useState({
     stats: {
       totalGWP: 0,
-      policiesThisMonth: 0,
+      totalPolicies: 0,
+      activePolicies: 0,
       activePOSPs: 0,
-      pendingClaims: 0,
-      renewalDue: 0,
-      commissionEarned: 0,
+      claimsCount: 0,
+      renewalsDue: 0,
+      totalCommissionPayable: 0,
     },
     premiumTrend: [],
     lobDistribution: [],
-    topPOSPs: [],
+    topPerformers: [],
     recentPolicies: [],
     claimsSummary: {},
-    renewalCalendar: [],
+    renewalCalendar: {},
   });
 
   useEffect(() => {
@@ -52,33 +86,87 @@ const IBDashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
+      setError(null);
+
+      // Use Promise.allSettled so partial failures don't block everything
+      // Correct backend endpoints:
+      // 1. GET /insurance/dashboard/admin → { summary: { totalPolicies, activePolicies, totalGWP, activePOSPs, claimsCount, renewalsDue, totalCommissionPayable }, lobDistribution: [...] }
+      // 2. GET /insurance/dashboard/charts/sales-performance → { data: [{ month, premium }] }
+      // 3. GET /insurance/dashboard/charts/lob-distribution → { data: [{ lob, count, gwp }] }
+      // 4. GET /insurance/dashboard/top-performers → { topPerformers: [{ agentCode, name, policiesCount, gwp }] }
+      // 5. GET /insurance/policies?take=10&skip=0 → { data: [...], pagination: {...} }
+      // 6. GET /insurance/dashboard/claims-overview → { summary: { totalClaims, intimatedClaims, approvedClaims, rejectedClaims, settledClaims } }
+      // 7. GET /insurance/dashboard/calendars/renewal → { entries: { 'YYYY-MM-DD': [...] } }
       const [
-        statsRes,
+        adminRes,
         trendRes,
         lobRes,
-        pospsRes,
+        performersRes,
         policiesRes,
         claimsRes,
         renewalRes,
-      ] = await Promise.all([
-        api.get('/insurance/dashboard/stats'),
-        api.get('/insurance/dashboard/premium-trend'),
-        api.get('/insurance/dashboard/lob-distribution'),
-        api.get('/insurance/dashboard/top-posps'),
-        api.get('/insurance/policies/recent'),
-        api.get('/insurance/claims/summary'),
-        api.get('/insurance/renewals/calendar'),
+      ] = await Promise.allSettled([
+        api.get('/insurance/dashboard/admin'),
+        api.get('/insurance/dashboard/charts/sales-performance'),
+        api.get('/insurance/dashboard/charts/lob-distribution'),
+        api.get('/insurance/dashboard/top-performers'),
+        api.get('/insurance/policies', { params: { skip: 0, take: 10 } }),
+        api.get('/insurance/dashboard/claims-overview'),
+        api.get('/insurance/dashboard/calendars/renewal'),
       ]);
 
-      setDashboardData({
-        stats: statsRes.data,
-        premiumTrend: trendRes.data,
-        lobDistribution: lobRes.data,
-        topPOSPs: pospsRes.data.slice(0, 10),
-        recentPolicies: policiesRes.data.slice(0, 10),
-        claimsSummary: claimsRes.data,
-        renewalCalendar: renewalRes.data.slice(0, 7),
-      });
+      const newData = { ...dashboardData };
+
+      // 1. Admin dashboard stats
+      if (adminRes.status === 'fulfilled') {
+        const admin = adminRes.value;
+        newData.stats = {
+          totalGWP: admin.summary?.totalGWP || 0,
+          totalPolicies: admin.summary?.totalPolicies || 0,
+          activePolicies: admin.summary?.activePolicies || 0,
+          activePOSPs: admin.summary?.activePOSPs || 0,
+          claimsCount: admin.summary?.claimsCount || 0,
+          renewalsDue: admin.summary?.renewalsDue || 0,
+          totalCommissionPayable: admin.summary?.totalCommissionPayable || 0,
+        };
+      }
+
+      // 2. Premium trend (monthly)
+      if (trendRes.status === 'fulfilled') {
+        newData.premiumTrend = trendRes.value?.data || [];
+      }
+
+      // 3. LOB distribution for pie chart
+      if (lobRes.status === 'fulfilled') {
+        const lobData = lobRes.value?.data || [];
+        newData.lobDistribution = lobData.map(item => ({
+          name: LOB_MAP[item.lob] || item.lob,
+          value: item.count || 0,
+          gwp: item.gwp || 0,
+        }));
+      }
+
+      // 4. Top performers
+      if (performersRes.status === 'fulfilled') {
+        newData.topPerformers = (performersRes.value?.topPerformers || []).slice(0, 10);
+      }
+
+      // 5. Recent policies
+      if (policiesRes.status === 'fulfilled') {
+        newData.recentPolicies = (policiesRes.value?.data || []).slice(0, 10);
+      }
+
+      // 6. Claims overview
+      if (claimsRes.status === 'fulfilled') {
+        newData.claimsSummary = claimsRes.value?.summary || {};
+      }
+
+      // 7. Renewal calendar
+      if (renewalRes.status === 'fulfilled') {
+        newData.renewalCalendar = renewalRes.value?.entries || {};
+      }
+
+      setDashboardData(newData);
     } catch (err) {
       setError('Failed to load dashboard data');
       console.error(err);
@@ -87,7 +175,7 @@ const IBDashboard = () => {
     }
   };
 
-  const StatCard = ({ title, value, icon: Icon, color, subtext, trend }) => (
+  const StatCard = ({ title, value, icon: Icon, color, subtext }) => (
     <div className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-lg transition-shadow">
       <div className="flex items-start justify-between">
         <div className="flex-1">
@@ -99,14 +187,30 @@ const IBDashboard = () => {
           <Icon className="w-5 h-5 text-white" />
         </div>
       </div>
-      {trend && (
-        <div className="flex items-center gap-1 mt-4 text-xs text-green-600">
-          <TrendingUp className="w-3 h-3" />
-          <span>{trend}</span>
-        </div>
-      )}
     </div>
   );
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '—';
+    return new Date(dateStr).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
+  // Flatten renewal calendar entries for display
+  const getUpcomingRenewals = () => {
+    const entries = dashboardData.renewalCalendar;
+    if (!entries || typeof entries !== 'object') return [];
+
+    const all = [];
+    const sortedDates = Object.keys(entries).sort();
+    for (const date of sortedDates.slice(0, 7)) {
+      const items = entries[date] || [];
+      items.forEach(item => {
+        const daysLeft = Math.ceil((new Date(item.expiryDate) - new Date()) / (1000 * 60 * 60 * 24));
+        all.push({ ...item, daysLeft: Math.max(0, daysLeft) });
+      });
+    }
+    return all.slice(0, 10);
+  };
 
   if (loading) {
     return (
@@ -119,14 +223,25 @@ const IBDashboard = () => {
     );
   }
 
-  const COLORS = ['#00897b', '#1565c0', '#f9a825', '#e91e63', '#9c27b0'];
+  const COLORS = ['#00897b', '#1565c0', '#f9a825', '#e91e63', '#9c27b0', '#ff5722', '#607d8b', '#4caf50'];
+
+  const upcomingRenewals = getUpcomingRenewals();
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Insurance Broking Dashboard</h1>
-        <p className="text-gray-600 mt-2">Monitor your insurance business performance</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Insurance Broking Dashboard</h1>
+          <p className="text-gray-600 mt-2">Monitor your insurance business performance</p>
+        </div>
+        <button
+          onClick={fetchDashboardData}
+          className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium transition-colors"
+        >
+          <RefreshCw className="w-4 h-4" />
+          Refresh
+        </button>
       </div>
 
       {error && (
@@ -146,11 +261,11 @@ const IBDashboard = () => {
           value={formatCurrency(dashboardData.stats.totalGWP)}
           icon={DollarSign}
           color="bg-teal-600"
-          trend="+8.3% MoM"
+          subtext={`${dashboardData.stats.totalPolicies} total policies`}
         />
         <StatCard
-          title="Policies This Month"
-          value={formatIndianNumber(dashboardData.stats.policiesThisMonth)}
+          title="Active Policies"
+          value={formatIndianNumber(dashboardData.stats.activePolicies)}
           icon={Shield}
           color="bg-teal-500"
         />
@@ -161,24 +276,22 @@ const IBDashboard = () => {
           color="bg-teal-400"
         />
         <StatCard
-          title="Pending Claims"
-          value={formatIndianNumber(dashboardData.stats.pendingClaims)}
+          title="Claims"
+          value={formatIndianNumber(dashboardData.stats.claimsCount)}
           icon={Clock}
           color="bg-orange-600"
-          trend="Needs attention"
         />
         <StatCard
-          title="Renewal Due (7 days)"
-          value={formatIndianNumber(dashboardData.stats.renewalDue)}
+          title="Renewals Due"
+          value={formatIndianNumber(dashboardData.stats.renewalsDue)}
           icon={AlertCircle}
           color="bg-purple-600"
         />
         <StatCard
-          title="Commission Earned"
-          value={formatCurrency(dashboardData.stats.commissionEarned)}
+          title="Commission Payable"
+          value={formatCurrency(dashboardData.stats.totalCommissionPayable)}
           icon={DollarSign}
           color="bg-green-600"
-          trend="This month"
         />
       </div>
 
@@ -191,9 +304,10 @@ const IBDashboard = () => {
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={dashboardData.premiumTrend}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="month" stroke="#9ca3af" />
-                <YAxis stroke="#9ca3af" />
+                <XAxis dataKey="month" stroke="#9ca3af" tick={{ fontSize: 11 }} />
+                <YAxis stroke="#9ca3af" tickFormatter={(v) => v >= 100000 ? `${(v / 100000).toFixed(1)}L` : v >= 1000 ? `${(v / 1000).toFixed(0)}K` : v} />
                 <Tooltip
+                  formatter={(value) => [formatCurrency(value), 'Premium']}
                   contentStyle={{
                     backgroundColor: '#1f2937',
                     border: 'none',
@@ -201,16 +315,12 @@ const IBDashboard = () => {
                     color: '#fff',
                   }}
                 />
-                <Legend />
-                <Bar dataKey="Motor" stackId="a" fill="#00897b" />
-                <Bar dataKey="Health" stackId="a" fill="#1565c0" />
-                <Bar dataKey="Life" stackId="a" fill="#f9a825" />
-                <Bar dataKey="Others" stackId="a" fill="#e91e63" />
+                <Bar dataKey="premium" fill="#00897b" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
             <div className="h-64 flex items-center justify-center text-gray-500">
-              No data available
+              No premium data available
             </div>
           )}
         </div>
@@ -235,12 +345,12 @@ const IBDashboard = () => {
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip formatter={(value, name) => [value, name]} />
               </PieChartComponent>
             </ResponsiveContainer>
           ) : (
             <div className="h-64 flex items-center justify-center text-gray-500">
-              No data available
+              No LOB data available
             </div>
           )}
         </div>
@@ -248,29 +358,29 @@ const IBDashboard = () => {
 
       {/* Charts Row 2 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Top POSPs */}
+        {/* Top Performers */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h2 className="text-lg font-bold text-gray-900 mb-6">Top 10 POSPs by Premium</h2>
-          {dashboardData.topPOSPs.length > 0 ? (
+          <h2 className="text-lg font-bold text-gray-900 mb-6">Top 10 POSPs by GWP</h2>
+          {dashboardData.topPerformers.length > 0 ? (
             <div className="space-y-3">
-              {dashboardData.topPOSPs.map((posp, idx) => (
-                <div key={posp.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              {dashboardData.topPerformers.map((posp, idx) => (
+                <div key={posp.agentCode || idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div className="flex items-center gap-3 flex-1">
                     <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center text-teal-700 font-bold text-sm">
                       {idx + 1}
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{posp.name}</p>
-                      <p className="text-xs text-gray-500">{formatIndianNumber(posp.policiesSold)} policies</p>
+                      <p className="text-xs text-gray-500">{posp.policiesCount} policies | {posp.agentCode}</p>
                     </div>
                   </div>
-                  <p className="text-sm font-bold text-teal-600 ml-2">{formatCurrency(posp.premium)}</p>
+                  <p className="text-sm font-bold text-teal-600 ml-2">{formatCurrency(posp.gwp)}</p>
                 </div>
               ))}
             </div>
           ) : (
             <div className="h-64 flex items-center justify-center text-gray-500">
-              No data available
+              No POSP data available
             </div>
           )}
         </div>
@@ -278,38 +388,37 @@ const IBDashboard = () => {
         {/* Claims Summary */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
           <h2 className="text-lg font-bold text-gray-900 mb-6">Claims Summary</h2>
-          {Object.keys(dashboardData.claimsSummary).length > 0 ? (
+          {dashboardData.claimsSummary.totalClaims > 0 ? (
             <div className="space-y-4">
               {[
-                { key: 'approved', label: 'Approved', color: 'green' },
-                { key: 'pending', label: 'Pending', color: 'orange' },
-                { key: 'rejected', label: 'Rejected', color: 'red' },
-              ].map((item) => (
-                <div key={item.key} className="flex items-end gap-3">
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-sm font-medium text-gray-700">{item.label}</span>
-                      <span className="text-sm font-bold text-gray-900">
-                        {formatIndianNumber(dashboardData.claimsSummary[item.key] || 0)}
-                      </span>
-                    </div>
-                    <div className={`h-2 bg-${item.color}-200 rounded-full overflow-hidden`}>
-                      <div
-                        className={`h-full bg-${item.color}-600`}
-                        style={{
-                          width: `${
-                            ((dashboardData.claimsSummary[item.key] || 0) /
-                              (dashboardData.claimsSummary.approved +
-                                dashboardData.claimsSummary.pending +
-                                dashboardData.claimsSummary.rejected)) *
-                            100
-                          }%`,
-                        }}
-                      />
+                { key: 'approvedClaims', label: 'Approved', color: 'bg-green-600', bgLight: 'bg-green-200' },
+                { key: 'intimatedClaims', label: 'Intimated', color: 'bg-blue-600', bgLight: 'bg-blue-200' },
+                { key: 'settledClaims', label: 'Settled', color: 'bg-teal-600', bgLight: 'bg-teal-200' },
+                { key: 'rejectedClaims', label: 'Rejected', color: 'bg-red-600', bgLight: 'bg-red-200' },
+              ].map((item) => {
+                const count = dashboardData.claimsSummary[item.key] || 0;
+                const total = dashboardData.claimsSummary.totalClaims || 1;
+                const pct = ((count / total) * 100).toFixed(1);
+                return (
+                  <div key={item.key} className="flex items-end gap-3">
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-gray-700">{item.label}</span>
+                        <span className="text-sm font-bold text-gray-900">{count} ({pct}%)</span>
+                      </div>
+                      <div className={`h-2 ${item.bgLight} rounded-full overflow-hidden`}>
+                        <div
+                          className={`h-full ${item.color} rounded-full`}
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <p className="text-sm text-gray-600">Total Claims: <span className="font-bold text-gray-900">{dashboardData.claimsSummary.totalClaims}</span></p>
+              </div>
             </div>
           ) : (
             <div className="h-40 flex items-center justify-center text-gray-500">
@@ -337,12 +446,12 @@ const IBDashboard = () => {
                 </thead>
                 <tbody>
                   {dashboardData.recentPolicies.map((policy) => (
-                    <tr key={policy.id} className="border-t border-gray-200">
-                      <td className="px-3 py-2 font-medium text-gray-900">{policy.policyNo}</td>
-                      <td className="px-3 py-2 text-gray-600 truncate">{policy.customerName}</td>
-                      <td className="px-3 py-2 text-gray-600">{policy.lob}</td>
-                      <td className="px-3 py-2 text-right text-gray-900 font-medium">
-                        {formatCurrency(policy.premium)}
+                    <tr key={policy.id} className="border-t border-gray-200 hover:bg-gray-50">
+                      <td className="px-3 py-2 font-medium text-gray-900 whitespace-nowrap">{policy.policyNumber}</td>
+                      <td className="px-3 py-2 text-gray-600 truncate max-w-[120px]">{policy.customerName}</td>
+                      <td className="px-3 py-2 text-gray-600 whitespace-nowrap">{LOB_MAP[policy.lob] || policy.lob}</td>
+                      <td className="px-3 py-2 text-right text-gray-900 font-medium whitespace-nowrap">
+                        {formatCurrency(policy.totalPremium)}
                       </td>
                     </tr>
                   ))}
@@ -356,32 +465,36 @@ const IBDashboard = () => {
           )}
         </div>
 
-        {/* Renewal Calendar - Next 7 Days */}
+        {/* Renewal Calendar - Upcoming */}
         <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h2 className="text-lg font-bold text-gray-900 mb-6">Renewal Calendar (Next 7 Days)</h2>
-          {dashboardData.renewalCalendar.length > 0 ? (
+          <h2 className="text-lg font-bold text-gray-900 mb-6">Upcoming Renewals</h2>
+          {upcomingRenewals.length > 0 ? (
             <div className="space-y-3">
-              {dashboardData.renewalCalendar.map((renewal) => (
+              {upcomingRenewals.map((renewal, idx) => (
                 <div
-                  key={renewal.id}
+                  key={renewal.id || idx}
                   className={`p-3 border rounded-lg ${
                     renewal.daysLeft <= 1
                       ? 'border-red-300 bg-red-50'
                       : renewal.daysLeft <= 3
                       ? 'border-orange-300 bg-orange-50'
-                      : 'border-yellow-300 bg-yellow-50'
+                      : renewal.daysLeft <= 7
+                      ? 'border-yellow-300 bg-yellow-50'
+                      : 'border-gray-200 bg-gray-50'
                   }`}
                 >
                   <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900">{renewal.policyNo}</p>
-                      <p className="text-xs text-gray-600 mt-1">{renewal.customerName}</p>
-                      <p className="text-xs text-gray-500 mt-1">{renewal.lob}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{renewal.policyNumber}</p>
+                      <p className="text-xs text-gray-600 mt-1 truncate">{renewal.customerName}</p>
+                      <p className="text-xs text-gray-500 mt-1">{LOB_MAP[renewal.lob] || renewal.lob}</p>
                     </div>
-                    <div className="text-right ml-2">
-                      <p className="text-sm font-bold text-gray-900">{renewal.daysLeft} days</p>
+                    <div className="text-right ml-2 flex-shrink-0">
+                      <p className={`text-sm font-bold ${renewal.daysLeft <= 3 ? 'text-red-600' : 'text-gray-900'}`}>
+                        {renewal.daysLeft} days
+                      </p>
                       <p className="text-xs font-medium text-gray-600 mt-1">
-                        {formatCurrency(renewal.premium)}
+                        {formatCurrency(renewal.premiumAmount)}
                       </p>
                     </div>
                   </div>
@@ -390,7 +503,7 @@ const IBDashboard = () => {
             </div>
           ) : (
             <div className="h-40 flex items-center justify-center text-gray-500">
-              No renewals due soon
+              No upcoming renewals
             </div>
           )}
         </div>
