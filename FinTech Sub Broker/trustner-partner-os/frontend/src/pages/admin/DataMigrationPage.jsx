@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import * as XLSX from 'xlsx';
 import dataMigrationAPI from '../../services/dataMigration';
 
 const DATASETS = [
@@ -93,6 +94,60 @@ function parseCSVLine(line) {
   return result;
 }
 
+/**
+ * Parse an Excel file (.xls/.xlsx) using SheetJS
+ * Returns { headers, rows } same format as parseCSV
+ */
+function parseExcelFile(arrayBuffer) {
+  const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
+  const sheetName = workbook.SheetNames[0];
+  const sheet = workbook.Sheets[sheetName];
+
+  // Convert to JSON with header row
+  const rawData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+  if (rawData.length === 0) return { headers: [], rows: [] };
+
+  const headers = Object.keys(rawData[0]);
+  const rows = rawData.map((row) => {
+    const obj = {};
+    headers.forEach((h) => {
+      let val = row[h];
+      // Convert Date objects to string
+      if (val instanceof Date) {
+        val = val.toLocaleDateString('en-GB'); // DD/MM/YYYY format
+      }
+      obj[h] = val != null ? String(val).trim() : '';
+    });
+    return obj;
+  });
+
+  return { headers, rows };
+}
+
+/**
+ * Check if file is an Excel file based on extension
+ */
+function isExcelFile(fileName) {
+  const ext = fileName.toLowerCase();
+  return ext.endsWith('.xls') || ext.endsWith('.xlsx') || ext.endsWith('.xlsb');
+}
+
+/**
+ * Unified file parser — handles both CSV and Excel formats
+ * Returns Promise<{ headers, rows }>
+ */
+async function parseFile(file) {
+  if (isExcelFile(file.name)) {
+    const arrayBuffer = await file.arrayBuffer();
+    return parseExcelFile(arrayBuffer);
+  } else {
+    const text = await file.text();
+    return parseCSV(text);
+  }
+}
+
+const ACCEPTED_FILE_TYPES = '.csv,.txt,.xls,.xlsx,.xlsb';
+
 function StatusCard({ label, value, color }) {
   return (
     <div className={`bg-${color}-50 border border-${color}-200 rounded-lg p-4`}>
@@ -108,17 +163,18 @@ function DatasetCard({ dataset, onImport, importState }) {
   const colorMap = { teal: 'teal', blue: 'blue', green: 'emerald', amber: 'amber' };
   const c = colorMap[dataset.color] || 'gray';
 
-  const handleFileChange = useCallback((e) => {
+  const handleFileChange = useCallback(async (e) => {
     const f = e.target.files[0];
     if (!f) return;
     setFile(f);
 
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const { headers, rows } = parseCSV(ev.target.result);
+    try {
+      const { headers, rows } = await parseFile(f);
       setPreview({ headers, rows, totalRows: rows.length });
-    };
-    reader.readAsText(f);
+    } catch (err) {
+      console.error('Error parsing file:', err);
+      setPreview({ headers: [], rows: [], totalRows: 0, error: 'Failed to parse file' });
+    }
   }, []);
 
   const handleImport = () => {
@@ -142,7 +198,7 @@ function DatasetCard({ dataset, onImport, importState }) {
         {/* File Upload */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Upload CSV File
+            Upload Excel or CSV File
           </label>
           <div className="flex items-center gap-3">
             <label className={`cursor-pointer inline-flex items-center px-4 py-2 bg-${c}-600 text-white rounded-lg hover:bg-${c}-700 transition text-sm font-medium`}>
@@ -150,11 +206,11 @@ function DatasetCard({ dataset, onImport, importState }) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
               </svg>
               Choose File
-              <input type="file" accept=".csv,.txt" onChange={handleFileChange} className="hidden" />
+              <input type="file" accept={ACCEPTED_FILE_TYPES} onChange={handleFileChange} className="hidden" />
             </label>
             {file && <span className="text-sm text-gray-600">{file.name}</span>}
           </div>
-          <p className="text-xs text-gray-400 mt-1">Expected: {dataset.file}</p>
+          <p className="text-xs text-gray-400 mt-1">Supports: .xls, .xlsx, .csv • Expected: {dataset.file}</p>
         </div>
 
         {/* Preview */}
@@ -278,8 +334,10 @@ function QuickImportZone({ onComplete }) {
     setError(null);
 
     for (const file of files) {
-      if (!file.name.endsWith('.csv') && !file.name.endsWith('.txt')) {
-        setError(`${file.name}: Only CSV files are supported`);
+      const ext = file.name.toLowerCase();
+      const supported = ext.endsWith('.csv') || ext.endsWith('.txt') || ext.endsWith('.xls') || ext.endsWith('.xlsx') || ext.endsWith('.xlsb');
+      if (!supported) {
+        setError(`${file.name}: Unsupported format. Use Excel (.xls, .xlsx) or CSV files.`);
         continue;
       }
 
@@ -287,8 +345,7 @@ function QuickImportZone({ onComplete }) {
       setProgress(`Reading ${file.name}...`);
 
       try {
-        const text = await file.text();
-        const { headers, rows } = parseCSV(text);
+        const { headers, rows } = await parseFile(file);
 
         if (rows.length === 0) {
           setError(`${file.name}: No data rows found`);
@@ -370,27 +427,27 @@ function QuickImportZone({ onComplete }) {
           <div className="space-y-3">
             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-teal-600 mx-auto"></div>
             <p className="text-teal-700 font-medium">{progress}</p>
-            <p className="text-xs text-gray-500">Auto-detecting CSV type → Importing → Syncing to Policies</p>
+            <p className="text-xs text-gray-500">Reading file → Auto-detecting type → Importing → Syncing to Policies</p>
           </div>
         ) : (
           <div className="space-y-3">
             <div className="text-4xl">📥</div>
             <div>
               <p className="text-lg font-semibold text-gray-800">
-                Quick Import — Drop any VJ Infosoft CSV here
+                Quick Import — Drop any VJ Infosoft Excel or CSV here
               </p>
               <p className="text-sm text-gray-500 mt-1">
-                Auto-detects file type (Client, Policy, Payout, or Renewal) • Imports to MIS • Syncs to Insurance Policies
+                Supports <strong>.xls, .xlsx, .csv</strong> • Auto-detects file type (Client, Policy, Payout, or Renewal) • Imports to MIS • Syncs to Policies
               </p>
             </div>
             <label className="inline-flex items-center gap-2 px-5 py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition cursor-pointer font-medium text-sm">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
               </svg>
-              Choose CSV File(s)
-              <input type="file" accept=".csv,.txt" multiple onChange={onFileSelect} className="hidden" />
+              Choose Excel / CSV File(s)
+              <input type="file" accept={ACCEPTED_FILE_TYPES} multiple onChange={onFileSelect} className="hidden" />
             </label>
-            <p className="text-xs text-gray-400">Supports multiple files at once</p>
+            <p className="text-xs text-gray-400">Supports Excel (.xls, .xlsx) and CSV • Multiple files at once</p>
           </div>
         )}
       </div>
@@ -525,7 +582,7 @@ export default function DataMigrationPage() {
           Data Migration - VJ Infosoft Import
         </h1>
         <p className="text-gray-500 mt-1">
-          Upload CSV files exported from VJ Infosoft to import data into Trustner Partner OS
+          Upload Excel (.xls/.xlsx) or CSV files exported from VJ Infosoft to import data into Trustner Partner OS
         </p>
       </div>
 
