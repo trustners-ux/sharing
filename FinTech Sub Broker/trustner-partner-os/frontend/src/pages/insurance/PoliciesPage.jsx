@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, Download, AlertCircle, RefreshCw, ExternalLink } from 'lucide-react';
+import { Search, Plus, Download, AlertCircle, RefreshCw } from 'lucide-react';
 import api from '../../services/api';
 import { formatCurrency } from '../../utils/formatters';
 
@@ -201,15 +201,6 @@ const PoliciesPage = () => {
             <Download className="w-5 h-5" />
             Export
           </button>
-          <a
-            href="https://trustner.co.in/backend/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition-colors"
-          >
-            <ExternalLink className="w-5 h-5" />
-            VJ Infosoft
-          </a>
         </div>
       </div>
 
