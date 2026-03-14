@@ -1,0 +1,182 @@
+import { LearningModule } from '@/types/learning';
+
+export const assetClassesModule: LearningModule = {
+  id: 'asset-classes',
+  title: 'SIP Asset Classes',
+  slug: 'asset-classes',
+  icon: 'PieChart',
+  description: 'Understand which types of mutual funds are suitable for SIP — equity, debt, hybrid, international, gold, and sectoral funds. Learn the risk-return profile of each.',
+  level: 'intermediate',
+  color: 'from-amber-500 to-orange-600',
+  estimatedTime: '40 min',
+  sections: [
+    {
+      id: 'equity-sip',
+      title: 'Equity SIP',
+      slug: 'equity-sip',
+      content: {
+        definition: 'Equity SIP involves systematically investing in equity mutual funds that primarily invest in stocks/shares of companies. It is the most popular SIP type and offers the highest potential returns along with higher volatility. Ideal for long-term wealth creation with 7+ year horizons.',
+        explanation: 'Equity SIPs invest in the stock market through mutual funds. The fund manager selects stocks based on the fund\'s mandate — large cap funds invest in top 100 companies, mid cap in 101-250, small cap in 251+, and flexi cap across all sizes. Over 10-15 years, equity SIPs have historically delivered 12-15% CAGR in India.',
+        realLifeExample: 'Deepak invests ₹15,000/month across equity categories:\n- Large Cap: ₹5,000 (stability)\n- Flexi Cap: ₹5,000 (all-weather)\n- Mid Cap: ₹3,000 (growth)\n- Small Cap: ₹2,000 (aggressive growth)\n\nAfter 15 years at weighted average 13% return:\nTotal invested: ₹27L\nEstimated value: ₹58.5L\nReturns: ₹31.5L (117%)',
+        keyPoints: [
+          'Highest return potential among all SIP asset classes',
+          'Higher volatility — requires 7+ year investment horizon',
+          'Categories: Large Cap, Mid Cap, Small Cap, Flexi Cap, ELSS',
+          'Historical CAGR: 12-15% over 10+ year periods',
+          'Ideal for goals like retirement, wealth creation, child education',
+          'Tax: STCG 20%, LTCG 12.5% above ₹1.25L exemption',
+          'Start with large cap/flexi cap for stability',
+          'Add mid/small cap only if horizon is 10+ years',
+        ],
+        faq: [
+          { question: 'Which equity fund should I start SIP in?', answer: 'Start with a Nifty 50 Index Fund or a well-rated Flexi Cap Fund. These provide broad market exposure with moderate risk. As you gain experience, diversify into mid cap and small cap.' },
+        ],
+        mcqs: [
+          { question: 'What is the minimum recommended SIP duration for equity funds?', options: ['1 year', '3 years', '5 years', '7+ years'], correctAnswer: 3, explanation: 'Equity funds require at least 7+ years of SIP to smooth out market volatility and deliver optimal returns through complete market cycles.' },
+        ],
+        summaryNotes: ['Equity SIP is the primary wealth creation tool', 'Minimum 7-year horizon for equity SIP', 'Diversify across market caps based on risk appetite', 'Index funds offer simplest, cost-effective equity SIP'],
+        relatedTopics: ['debt-sip', 'hybrid-sip', 'wealth-creation'],
+      },
+    },
+    {
+      id: 'debt-sip',
+      title: 'Debt SIP',
+      slug: 'debt-sip',
+      content: {
+        definition: 'Debt SIP involves investing systematically in debt mutual funds that invest in bonds, government securities, corporate deposits, and other fixed-income instruments. Debt SIPs offer lower returns (6-8%) but significantly lower volatility, making them suitable for short-to-medium term goals and conservative investors.',
+        explanation: 'Debt funds invest in loans given to governments and companies. They earn interest income and sometimes capital gains from bond price changes. Debt SIP is ideal for: (1) Goals within 1-3 years, (2) Emergency fund building, (3) Conservative investors, (4) Retirees seeking stable income. Returns are lower than equity but much more predictable.',
+        realLifeExample: 'Lakshmi is 58, retiring in 2 years. She moves ₹50,000/month SIP from equity to short-duration debt fund. At 7% return after 2 years, her corpus grows to ₹12.87L from ₹12L invested — stable and predictable, unlike equity which could crash right before retirement.',
+        keyPoints: [
+          'Returns: 6-8% typically — lower than equity but more stable',
+          'Categories: Liquid, Ultra-Short, Short Duration, Corporate Bond, Gilt',
+          'Ideal for short-term goals (1-3 years)',
+          'Tax: All gains taxed at income tax slab rate (from April 2023)',
+          'Lower volatility — suitable for risk-averse investors',
+          'Good for emergency fund parking beyond 6 months',
+          'Use for goal maturity — shift from equity to debt as goal nears',
+          'Credit risk exists — choose high-quality debt funds',
+        ],
+        faq: [
+          { question: 'Are debt funds completely safe?', answer: 'Not completely. Debt funds carry credit risk (borrower may default) and interest rate risk (bond prices fall when rates rise). Choose high-quality debt funds (investing in AAA-rated bonds and government securities) to minimize risk.' },
+        ],
+        mcqs: [
+          { question: 'From April 2023, how are debt mutual fund gains taxed?', options: ['10% flat', '20% with indexation', 'At investor\'s income tax slab rate', 'Tax-free'], correctAnswer: 2, explanation: 'From April 2023, all gains from debt mutual funds (regardless of holding period) are taxed at the investor\'s income tax slab rate, with no indexation benefit.' },
+        ],
+        summaryNotes: ['Debt SIP = stability and predictability', 'Use for short-term goals and as equity complement', 'Tax efficiency reduced after April 2023 changes', 'Always check credit quality of the debt fund'],
+        relatedTopics: ['equity-sip', 'hybrid-sip', 'sip-taxation'],
+      },
+    },
+    {
+      id: 'hybrid-sip',
+      title: 'Hybrid SIP',
+      slug: 'hybrid-sip',
+      content: {
+        definition: 'Hybrid SIP invests in hybrid/balanced mutual funds that combine equity and debt in a single fund. These funds offer a middle ground — moderate returns with moderate risk. The equity-debt ratio varies: Aggressive Hybrid (65-80% equity), Balanced Advantage (dynamic allocation), and Conservative Hybrid (10-25% equity).',
+        explanation: 'Hybrid funds are "all-in-one" funds that handle asset allocation for you. Instead of managing separate equity and debt SIPs, a hybrid fund does the balancing. Balanced Advantage Funds (BAFs) are especially popular as they dynamically adjust equity-debt allocation based on market valuations — increasing equity when markets are cheap and reducing when expensive.',
+        realLifeExample: 'For a 5-year goal of ₹10 Lakhs for a car:\nSIP in Aggressive Hybrid Fund: ₹12,500/month\nExpected return: 10% (blended)\nAfter 5 years: ₹10.17 Lakhs\n\nThe hybrid fund provides reasonable equity upside while the debt portion cushions against sharp market falls.',
+        keyPoints: [
+          'Combines equity and debt in a single fund',
+          'Aggressive Hybrid: 65-80% equity + 20-35% debt',
+          'Balanced Advantage: Dynamic allocation based on market valuations',
+          'Conservative Hybrid: 10-25% equity + 75-90% debt',
+          'Ideal for medium-term goals (3-7 years)',
+          'Tax: Treated as equity fund if equity allocation ≥ 65%',
+          'Great for first-time investors wanting one-fund solution',
+          'Balanced Advantage Funds handle market timing automatically',
+        ],
+        faq: [
+          { question: 'Which hybrid fund type is best for SIP?', answer: 'Balanced Advantage Funds (BAFs) are most popular for SIP as they dynamically manage equity-debt allocation. For 5+ year goals, Aggressive Hybrid is good. For 3-5 year goals, BAF is ideal.' },
+        ],
+        mcqs: [
+          { question: 'When is a hybrid fund treated as equity for tax purposes?', options: ['Always', 'When equity allocation is ≥ 65%', 'When equity allocation is ≥ 50%', 'Never'], correctAnswer: 1, explanation: 'A hybrid fund is classified as equity for taxation when its equity allocation is 65% or more of the portfolio.' },
+        ],
+        summaryNotes: ['Hybrid funds = one fund for equity + debt allocation', 'BAFs dynamically adjust — great for passive investors', 'Good for medium-term goals and first-time investors', 'Check equity percentage for tax classification'],
+        relatedTopics: ['equity-sip', 'debt-sip', 'house-purchase'],
+      },
+    },
+    {
+      id: 'international-sip',
+      title: 'International SIP',
+      slug: 'international-sip',
+      content: {
+        definition: 'International SIP involves investing in mutual funds that invest in stocks listed outside India — primarily in the US (S&P 500, NASDAQ) but also Europe, China, and other emerging markets. It provides geographic diversification and exposure to global companies like Apple, Microsoft, Google, and Amazon.',
+        explanation: 'India represents only about 3.5% of global stock market capitalization. By investing only in Indian stocks, you miss 96.5% of global opportunities. International SIP gives you access to global innovation leaders, currency diversification (dollar appreciation benefits), and protection against India-specific risks.',
+        realLifeExample: 'Siddharth allocates 15% of his total SIP (₹5,000/month) to a US-focused fund tracking S&P 500.\n\nBenefit 1: When Indian markets fell 15% in 2022, his US holdings fell only 8% — better diversification\nBenefit 2: The rupee depreciated from ₹74 to ₹83 per dollar — his US investment gained 12% just from currency movement\nBenefit 3: He now owns tiny pieces of Apple, Microsoft, Google, Amazon, and Tesla through one SIP',
+        keyPoints: [
+          'Provides geographic diversification beyond Indian markets',
+          'Access to global companies and innovation sectors',
+          'Currency benefit when rupee depreciates against dollar',
+          'Recommended allocation: 10-20% of total SIP portfolio',
+          'Options: US Index Fund, Global Fund, Emerging Markets Fund',
+          'Tax: Treated as debt fund for taxation (STCG/LTCG at slab rate)',
+          'RBI limit: ₹7 Lakh per person per year under LRS for Fund of Funds',
+          'Reduces India-specific political and economic risk',
+        ],
+        faq: [
+          { question: 'How much should I allocate to international SIP?', answer: '10-20% of your total SIP portfolio is a reasonable allocation. Start with 10% in a US or global index fund, and increase based on comfort level.' },
+        ],
+        mcqs: [
+          { question: 'What is the primary tax classification of international mutual funds in India?', options: ['Equity fund', 'Debt fund', 'Hybrid fund', 'Tax-exempt'], correctAnswer: 1, explanation: 'International mutual funds are classified as non-equity (debt) funds for tax purposes in India, with gains taxed at the investor\'s income tax slab rate.' },
+        ],
+        summaryNotes: ['International SIP adds global diversification to your portfolio', '10-20% allocation is optimal for most investors', 'Currency movement can add/subtract from returns', 'Taxed as debt fund — plan accordingly'],
+        relatedTopics: ['equity-sip', 'wealth-creation', 'sectoral-sip'],
+      },
+    },
+    {
+      id: 'gold-etf-sip',
+      title: 'Gold ETF SIP',
+      slug: 'gold-etf-sip',
+      content: {
+        definition: 'Gold ETF SIP involves systematic investment in Gold Exchange Traded Funds, which track the domestic price of gold. Each unit of a Gold ETF represents approximately 1 gram of gold. It provides exposure to gold without the hassles of physical gold storage, purity concerns, and making charges.',
+        explanation: 'Gold has been a traditional Indian investment. Gold ETF SIP modernizes this by allowing you to buy gold digitally in small amounts. No storage worries, no purity issues, no making charges. Gold acts as a portfolio hedge during economic uncertainty and inflation. A 5-10% gold allocation improves portfolio risk-adjusted returns.',
+        realLifeExample: 'Meena allocates ₹2,000/month SIP in Gold ETF:\nOver 10 years, gold has returned ~11% CAGR in India\nHer ₹2.4L investment could grow to ~₹4.44L\n\nDuring market crashes (2008, 2020), when her equity dropped 30-40%, her gold held steady or even appreciated, reducing overall portfolio pain.',
+        keyPoints: [
+          'Gold ETF SIP = digital gold investing through mutual funds',
+          'Each unit ≈ 1 gram of gold at domestic price',
+          'No storage, no purity concerns, no making charges',
+          'Historical return: 8-11% CAGR in INR terms (last 15 years)',
+          'Acts as portfolio hedge and inflation protection',
+          'Recommended allocation: 5-10% of total portfolio',
+          'Tax: Treated as debt fund (all gains at slab rate)',
+          'Alternative: Sovereign Gold Bonds for better tax treatment',
+        ],
+        faq: [
+          { question: 'Gold ETF vs Sovereign Gold Bond vs Physical Gold — which is better for SIP?', answer: 'Gold ETF is best for SIP due to high liquidity and small investment amounts. SGBs offer additional 2.5% interest but have 8-year lock-in. Physical gold has making charges (15-25%) and storage costs. For SIP, Gold ETF wins.' },
+        ],
+        mcqs: [
+          { question: 'What is the recommended gold allocation in a diversified portfolio?', options: ['0-2%', '5-10%', '20-30%', '50%+'], correctAnswer: 1, explanation: 'Financial planners recommend 5-10% gold allocation in a diversified portfolio for hedging against economic uncertainty without sacrificing growth.' },
+        ],
+        summaryNotes: ['Gold ETF SIP is the cleanest way to invest in gold', '5-10% allocation provides portfolio hedging benefit', 'Gold shines during uncertainty — complements equity well', 'Consider SGBs for long-term gold holding (better tax + interest)'],
+        relatedTopics: ['equity-sip', 'hybrid-sip', 'international-sip'],
+      },
+    },
+    {
+      id: 'sectoral-sip',
+      title: 'Sectoral SIP Risks',
+      slug: 'sectoral-sip',
+      content: {
+        definition: 'Sectoral SIP involves investing in mutual funds that focus on a single sector — IT, Pharma, Banking, Infrastructure, FMCG, etc. While sectoral funds can deliver exceptional returns when the sector is in a growth phase, they carry significantly higher risk due to lack of diversification and cyclical nature of sectors.',
+        explanation: 'Sectoral funds are high-conviction, concentrated bets on one industry. When the sector booms, returns can be 30-50% in a year. When it busts, losses can be 30-50% too. Unlike diversified funds that spread risk across sectors, sectoral funds have nowhere to hide during sectoral downturns. SIP in sectoral funds is only for experienced investors with specific sectoral views.',
+        realLifeExample: 'Rahul started a ₹10,000/month SIP in an IT sector fund in January 2021:\nJan 2021 - Jan 2022: IT sector boomed → Portfolio up 40%\nJan 2022 - Jan 2023: IT sector corrected → Portfolio down 25%\nNet result after 2 years: Modest 8% return vs diversified fund\'s 15%\n\nHis colleague Sita, investing the same in a diversified flexi-cap fund, earned steadier 15% returns because when IT fell, banking and pharma in her fund compensated.',
+        keyPoints: [
+          'Concentrated in one sector — no diversification benefit',
+          'Can deliver extreme returns (both positive and negative)',
+          'Highly cyclical — sectors go through boom and bust cycles',
+          'Suitable only for experienced investors with sectoral expertise',
+          'Should not exceed 10-15% of total SIP portfolio',
+          'Not recommended as core holding — only as satellite allocation',
+          'Timing matters more in sectoral funds than diversified funds',
+          'Popular sectors for SIP: Banking, IT, Pharma, Infrastructure',
+        ],
+        faq: [
+          { question: 'Should beginners invest in sectoral funds via SIP?', answer: 'No. Beginners should stick to diversified equity funds (flexi cap, large cap) for SIP. Sectoral funds require understanding of industry cycles, economic indicators, and higher risk tolerance. Only consider after 3-5 years of investing experience.' },
+        ],
+        mcqs: [
+          { question: 'What is the maximum recommended allocation to sectoral funds in a portfolio?', options: ['100%', '50%', '10-15%', '0%'], correctAnswer: 2, explanation: 'Sectoral funds should ideally not exceed 10-15% of total portfolio. They are satellite holdings, not core positions.' },
+        ],
+        summaryNotes: ['Sectoral SIP = high risk, high reward, not diversified', 'Only for experienced investors with sectoral understanding', 'Keep allocation below 10-15% of total portfolio', 'Use diversified funds as core; sectoral only as satellite'],
+        relatedTopics: ['equity-sip', 'hybrid-sip', 'sip-myths-facts'],
+      },
+    },
+  ],
+};

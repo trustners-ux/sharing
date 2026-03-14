@@ -1,0 +1,156 @@
+import { LearningModule } from '@/types/learning';
+
+export const goalPlanningModule: LearningModule = {
+  id: 'goal-planning',
+  title: 'SIP Goal Planning',
+  slug: 'goal-planning',
+  icon: 'Target',
+  description: 'Learn how to use SIP strategically for specific financial goals — retirement, child education, house purchase, wealth creation, and the FIRE movement.',
+  level: 'intermediate',
+  color: 'from-teal-500 to-teal-600',
+  estimatedTime: '50 min',
+  sections: [
+    {
+      id: 'retirement',
+      title: 'SIP for Retirement',
+      slug: 'retirement',
+      content: {
+        definition: 'Retirement SIP planning involves calculating the corpus required to maintain your lifestyle after retirement, accounting for inflation, life expectancy, and post-retirement returns, and then working backwards to determine the monthly SIP needed to build that corpus during your working years.',
+        explanation: 'Retirement planning is the most critical SIP goal because there are no second chances. You need to estimate: (1) How much you will spend monthly after retirement (adjusted for inflation), (2) How many years of retirement you need to fund (life expectancy minus retirement age), (3) What returns your corpus will earn post-retirement. Then work backwards to find the SIP amount needed today.',
+        realLifeExample: 'Anil, 30 years old, wants to retire at 55.\nCurrent monthly expense: ₹40,000\nInflation: 7%\nPre-retirement return: 12%\nPost-retirement return: 8%\nLife expectancy: 80 years\n\nFuture monthly expense at 55: ₹40,000 × (1.07)^25 = ₹2,17,314\nCorpus needed for 25-year retirement: ~₹4.5 Crore\nMonthly SIP required: ₹23,850\n\nWith 10% annual step-up SIP, starting SIP: ₹12,000/month\nThis is achievable for Anil on his current salary!',
+        keyPoints: [
+          'Retirement is the most important and non-negotiable financial goal',
+          'Start retirement SIP as early as possible — compounding is critical',
+          'Account for 25-30 years of post-retirement life',
+          'Healthcare costs inflate at 10-15% — plan separately',
+          'Use step-up SIP to make initial SIP amount manageable',
+          'Post-retirement, switch to SWP for regular income',
+          'Diversify across equity (growth) and debt (stability)',
+          'NPS can supplement mutual fund SIP for retirement',
+        ],
+        formula: 'Retirement Corpus = Monthly Expense × [(1-(1+r)^-n) / r]\nWhere r = real monthly post-retirement return\nn = retirement months\n\nSIP Required = Corpus / [((1+r)^n - 1) / r × (1+r)]\nWhere r = monthly pre-retirement return\nn = months to retirement',
+        faq: [
+          { question: 'When should I start retirement SIP?', answer: 'Immediately. Every year of delay increases the required SIP amount by 15-20%. Starting at 25 vs 35 can mean the difference between ₹10,000 and ₹30,000 monthly SIP for the same retirement goal.' },
+          { question: 'How much corpus do I need for retirement?', answer: 'A rough rule: 25-30 times your annual expense at retirement. If you expect ₹1 Lakh/month expense at retirement, you need ₹3-3.6 Crore corpus. Use our retirement calculator for precise planning.' },
+        ],
+        mcqs: [
+          { question: 'What is the "25x rule" in retirement planning?', options: ['Invest 25 times your monthly salary', 'You need 25 times your annual retirement expenses as corpus', 'Invest for 25 years', 'Get 25% annual returns'], correctAnswer: 1, explanation: 'The 25x rule states that you need a retirement corpus of approximately 25 times your annual expenses at retirement to sustain a 30-year retirement at 4% withdrawal rate.' },
+        ],
+        summaryNotes: ['Start retirement SIP in your 20s if possible', 'Account for inflation, healthcare costs, and longevity', 'Step-up SIP makes retirement planning achievable at any salary level', 'Post-retirement, use SWP for regular income from your corpus'],
+        relatedTopics: ['power-of-compounding', 'step-up-sip', 'inflation-adjusted'],
+      },
+    },
+    {
+      id: 'child-education',
+      title: 'SIP for Child Education',
+      slug: 'child-education',
+      content: {
+        definition: 'Child education SIP planning involves estimating the future cost of your child\'s education (accounting for education inflation of 10-12% annually), and starting a dedicated SIP to build the required corpus by the time your child needs it.',
+        explanation: 'Education costs in India are rising at 10-12% per year — almost double the general inflation rate. An engineering degree costing ₹10 Lakhs today will cost ₹67 Lakhs in 20 years. An MBA costing ₹25 Lakhs today will cost ₹1.68 Crore in 20 years. Without a dedicated SIP for education, most parents will face a severe funding gap.',
+        realLifeExample: 'Priyanka has a 2-year-old daughter. She wants to fund her engineering (age 18) and MBA (age 22).\n\nCurrent cost of engineering: ₹15L → Future (16 years, 10% inflation): ₹69L\nCurrent cost of MBA: ₹25L → Future (20 years, 10% inflation): ₹1.68 Crore\nTotal future need: ₹2.37 Crore\n\nSIP at 12% return:\nFor engineering (16 years): ₹12,800/month\nFor MBA (20 years): ₹16,800/month\nTotal SIP: ₹29,600/month\n\nWith step-up SIP starting at ₹15,000/month with 15% annual increase, Priyanka can comfortably fund both goals.',
+        keyPoints: [
+          'Education inflation in India: 10-12% per year',
+          'Start education SIP when child is born for maximum compounding',
+          'Separate SIPs for different milestones (graduation, post-graduation)',
+          'Gradually shift from equity to debt as goal approaches (last 2-3 years)',
+          'Consider both domestic and international education costs',
+          'Sukanya Samriddhi Yojana can supplement (for girl child)',
+          'Do not use retirement corpus for child education',
+          'Education loan can be backup — SIP should be primary plan',
+        ],
+        faq: [
+          { question: 'What if my child gets a scholarship?', answer: 'Great! Your SIP corpus can then be redirected to their post-graduation, startup capital, or wedding fund. Having excess is always better than having a shortfall.' },
+        ],
+        mcqs: [
+          { question: 'What is the approximate education inflation rate in India?', options: ['3-4%', '5-6%', '10-12%', '20-25%'], correctAnswer: 2, explanation: 'Education costs in India have been rising at approximately 10-12% annually, nearly double the general inflation rate.' },
+        ],
+        summaryNotes: ['Start education SIP from the year the child is born', 'Use 10-12% education inflation for realistic planning', 'Keep education SIP separate from retirement SIP', 'Shift to debt funds 2-3 years before the goal date'],
+        relatedTopics: ['retirement', 'inflation-adjusted', 'step-up-sip'],
+      },
+    },
+    {
+      id: 'house-purchase',
+      title: 'SIP for House Purchase',
+      slug: 'house-purchase',
+      content: {
+        definition: 'Using SIP to build a house down payment corpus. Most home loans require 20-30% down payment. SIP can systematically build this down payment over 5-10 years while potentially earning better returns than traditional savings.',
+        explanation: 'A house costing ₹80 Lakhs today requires ₹16-24 Lakhs as down payment. Instead of struggling to arrange this lump sum, you can start a SIP 5-7 years before your planned purchase. Since the time horizon is medium-term, use a balanced or aggressive hybrid fund rather than pure equity.',
+        realLifeExample: 'Vikram plans to buy a house in 7 years. Expected house cost then: ₹1.2 Crore.\nDown payment needed (20%): ₹24 Lakhs\nRegistration & stamp duty (7%): ₹8.4 Lakhs\nTotal needed: ₹32.4 Lakhs\n\nSIP in hybrid fund at 10% return for 7 years:\nRequired monthly SIP: ₹26,800\n\nVikram starts with ₹20,000/month with 10% annual step-up → achieves target comfortably.',
+        keyPoints: [
+          'Plan for 20-30% down payment plus registration costs',
+          'Medium-term goal (5-10 years) — use balanced/hybrid funds',
+          'Shift to debt funds 1-2 years before purchase date',
+          'Real estate prices inflate at 5-8% in most cities',
+          'Do not delay house purchase indefinitely — prices also increase',
+          'Consider both apartment and plot investment options',
+          'SIP is better than saving in bank FD for this goal',
+          'Account for interior, furnishing, and moving costs too',
+        ],
+        faq: [
+          { question: 'Should I use equity SIP for house down payment?', answer: 'For 7+ year horizon, equity SIP is fine. For 3-5 years, use balanced/hybrid funds. For less than 3 years, use debt funds. The closer you are to the goal, the more conservative your investment should be.' },
+        ],
+        mcqs: [
+          { question: 'What type of fund is most suitable for a 5-year house down payment SIP?', options: ['Pure equity', 'Balanced/hybrid fund', 'Pure debt', 'Sectoral fund'], correctAnswer: 1, explanation: 'Balanced/hybrid funds offer moderate risk and returns, making them suitable for medium-term goals like a 5-year house down payment plan.' },
+        ],
+        summaryNotes: ['Account for down payment + registration + furnishing costs', 'Use balanced funds for 5-7 year horizon', 'Shift to debt 1-2 years before purchase', 'Step-up SIP makes the target more achievable'],
+        relatedTopics: ['retirement', 'child-education', 'step-up-sip'],
+      },
+    },
+    {
+      id: 'wealth-creation',
+      title: 'SIP for Wealth Creation',
+      slug: 'wealth-creation',
+      content: {
+        definition: 'Wealth creation through SIP is an open-ended, long-term investment strategy without a specific goal amount or date. The objective is to maximize wealth accumulation over the longest possible period through consistent, diversified SIP investments in growth-oriented funds.',
+        explanation: 'Unlike goal-based SIP where you target a specific amount, wealth creation SIP is about growing your money as much as possible over your earning lifetime. The strategy: invest consistently, increase amounts regularly, diversify smartly, and never touch the money for short-term needs. Think of it as your "wealth engine" running in the background.',
+        realLifeExample: 'Arun starts wealth creation SIP at age 25 with ₹15,000/month, 15% annual step-up, 13% average return:\n\nAge 35 (10 years): Invested ₹36.3L → Value ₹63.8L\nAge 40 (15 years): Invested ₹76.2L → Value ₹1.81 Crore\nAge 45 (20 years): Invested ₹1.51 Crore → Value ₹4.95 Crore\nAge 50 (25 years): Invested ₹2.89 Crore → Value ₹13.78 Crore\nAge 55 (30 years): Invested ₹5.40 Crore → Value ₹37.61 Crore\n\nThe last 10 years generated more wealth than the first 20 combined — that is compounding at work.',
+        keyPoints: [
+          'No specific goal amount — maximize wealth over time',
+          'Use aggressive equity allocation for long-term growth',
+          'Step-up SIP is essential for wealth creation',
+          'Diversify across large cap, mid cap, and flexi cap funds',
+          'Add international diversification (10-15% allocation)',
+          'Reinvest all dividends (growth option, not dividend option)',
+          'Stay invested through all market cycles',
+          'Use tax harvesting to optimize long-term tax efficiency',
+        ],
+        faq: [
+          { question: 'How many funds should I have for wealth creation?', answer: '4-6 funds across different categories is optimal. More than 8 funds leads to over-diversification with index-like returns but higher complexity. Focus on quality over quantity.' },
+        ],
+        mcqs: [
+          { question: 'For long-term wealth creation via SIP, which fund option should be chosen?', options: ['Dividend payout', 'Dividend reinvestment', 'Growth option', 'Any option'], correctAnswer: 2, explanation: 'Growth option reinvests all gains back into the fund, maximizing the compounding effect for long-term wealth creation.' },
+        ],
+        summaryNotes: ['Wealth creation SIP has no end date — invest as long as possible', 'Equity-heavy allocation with systematic diversification', 'Step-up SIP + time = extraordinary wealth', 'Stay patient — the last 10 years create more wealth than the first 20'],
+        relatedTopics: ['power-of-compounding', 'step-up-sip', 'fire-strategy'],
+      },
+    },
+    {
+      id: 'fire-strategy',
+      title: 'FIRE Strategy Using SIP',
+      slug: 'fire-strategy',
+      content: {
+        definition: 'FIRE (Financial Independence, Retire Early) is a movement focused on extreme saving and investing (50-70% of income) to accumulate enough wealth to retire decades earlier than traditional retirement age. SIP is the primary tool used by FIRE aspirants in India to build this early retirement corpus systematically.',
+        explanation: 'The FIRE equation is simple: save aggressively, invest wisely (SIP), build a corpus of 25-30x your annual expenses, and live off the returns. If you spend ₹6L/year, you need ₹1.5-1.8 Crore to be financially independent. The higher your savings rate, the earlier you reach FIRE. At 50% savings rate, you could achieve FIRE in 15-17 years.',
+        realLifeExample: 'Kiran (28) earns ₹1.5L/month, expenses ₹60K/month.\nSavings rate: 60% (₹90,000/month)\nSIP allocation: ₹90,000/month in diversified equity\nExpected return: 12% CAGR\nAnnual expenses: ₹7.2L → FIRE target (25x): ₹1.8 Crore (inflation-adjusted: ₹4.2 Crore at age 45)\n\nSIP of ₹90,000/month with 10% step-up at 12% return:\nBy age 38 (10 years): ₹2.06 Crore\nBy age 40 (12 years): ₹3.05 Crore\nBy age 43 (15 years): ₹5.25 Crore\n\nKiran can potentially achieve FIRE by age 42-43, retiring 17+ years early.',
+        keyPoints: [
+          'FIRE requires 50-70% savings rate — not for everyone',
+          'Target corpus: 25-30x annual expenses (inflation-adjusted)',
+          'SIP is the primary wealth accumulation tool for FIRE in India',
+          'Lean FIRE: Minimal lifestyle, lower corpus needed',
+          'Fat FIRE: Comfortable lifestyle, higher corpus needed',
+          'Barista FIRE: Part-time work + investment income',
+          'Coast FIRE: Stop investing, let existing corpus compound to target',
+          'Post-FIRE income: SWP + dividends + part-time work',
+        ],
+        faq: [
+          { question: 'Is FIRE realistic in India?', answer: 'Yes, but it requires high income and extreme discipline. With salaries in IT/finance of ₹1.5L+/month, a 50% savings rate makes FIRE achievable in 15-20 years. Lower incomes make it harder but not impossible — even partial FIRE (reducing work, not stopping) is valuable.' },
+        ],
+        mcqs: [
+          { question: 'What is the "25x rule" in FIRE?', options: ['Save 25% of income', 'Need 25x annual expenses as corpus', 'Invest for 25 years', 'Get 25% annual returns'], correctAnswer: 1, explanation: 'The 25x rule states you need a corpus equal to 25 times your annual expenses. At 4% annual withdrawal rate, this corpus can theoretically last indefinitely.' },
+        ],
+        summaryNotes: ['FIRE = Aggressive saving + disciplined SIP investing', '25-30x annual expenses is the FIRE target corpus', 'High savings rate is more important than high returns', 'Multiple FIRE variants exist — choose what fits your lifestyle', 'Post-FIRE, use SWP for systematic income generation'],
+        relatedTopics: ['retirement', 'wealth-creation', 'step-up-sip'],
+      },
+    },
+  ],
+};
