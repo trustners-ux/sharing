@@ -1,0 +1,387 @@
+'use client';
+
+import { useState, useCallback, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+import { User, Briefcase, Landmark, CreditCard, Loader2 } from 'lucide-react';
+
+import { OTPGate } from '@/components/financial-planning/OTPGate';
+import WizardShell from '@/components/financial-planning/WizardShell';
+import WizardStep from '@/components/financial-planning/WizardStep';
+import PersonalProfileStep from '@/components/financial-planning/steps/PersonalProfileStep';
+import CareerIncomeStep from '@/components/financial-planning/steps/CareerIncomeStep';
+import AssetsInvestmentsStep from '@/components/financial-planning/steps/AssetsInvestmentsStep';
+import LiabilitiesStep from '@/components/financial-planning/steps/LiabilitiesStep';
+import { DEFAULT_PLANNING_DATA } from '@/lib/constants/financial-planning';
+
+import type { FinancialPlanningData, AssetProfile, LiabilityProfile } from '@/types/financial-planning';
+
+// Storage keys
+const STORAGE_KEY = 'fp-wizard-data';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Data helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+type PersonalProfileData = {
+  fullName: string;
+  dateOfBirth: string;
+  gender: string;
+  maritalStatus: string;
+  dependents: number;
+  spouseAge: number | null;
+  childrenAges: number[];
+  city: string;
+  cityTier: string;
+  residentialStatus: string;
+};
+
+type CareerIncomeData = {
+  employmentType: string;
+  industry: string;
+  yearsInCurrentJob: number;
+  incomeStability: string;
+  expectedRetirementAge: number;
+  spouseWorks: boolean;
+  expectedAnnualGrowth: number;
+  monthlyInHandSalary: number;
+  annualBonus: number;
+  rentalIncome: number;
+  businessIncome: number;
+  otherIncome: number;
+  monthlyHouseholdExpenses: number;
+  monthlyEMIs: number;
+  monthlyRent: number;
+  monthlySIPsRunning: number;
+  monthlyInsurancePremiums: number;
+  annualDiscretionary: number;
+};
+
+function extractPersonalProfile(d: FinancialPlanningData): PersonalProfileData {
+  const p = d.personalProfile;
+  return {
+    fullName: p.fullName,
+    dateOfBirth: p.dateOfBirth,
+    gender: p.gender,
+    maritalStatus: p.maritalStatus,
+    dependents: p.dependents,
+    spouseAge: p.spouseAge,
+    childrenAges: p.childrenAges,
+    city: p.city,
+    cityTier: p.cityTier,
+    residentialStatus: p.residentialStatus,
+  };
+}
+
+function extractCareerIncome(d: FinancialPlanningData): CareerIncomeData {
+  const c = d.careerProfile;
+  const i = d.incomeProfile;
+  return {
+    employmentType: c.employmentType,
+    industry: c.industry,
+    yearsInCurrentJob: c.yearsInCurrentJob,
+    incomeStability: c.incomeStability,
+    expectedRetirementAge: c.expectedRetirementAge,
+    spouseWorks: c.spouseWorks,
+    expectedAnnualGrowth: c.expectedAnnualGrowth,
+    monthlyInHandSalary: i.monthlyInHandSalary,
+    annualBonus: i.annualBonus,
+    rentalIncome: i.rentalIncome,
+    businessIncome: i.businessIncome,
+    otherIncome: i.otherIncome,
+    monthlyHouseholdExpenses: i.monthlyHouseholdExpenses,
+    monthlyEMIs: i.monthlyEMIs,
+    monthlyRent: i.monthlyRent,
+    monthlySIPsRunning: i.monthlySIPsRunning,
+    monthlyInsurancePremiums: i.monthlyInsurancePremiums,
+    annualDiscretionary: i.annualDiscretionary,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Page Component
+// ─────────────────────────────────────────────────────────────────────────────
+
+export default function AssessPage() {
+  const router = useRouter();
+
+  // Auth state
+  const [verified, setVerified] = useState(false);
+  const [sessionToken, setSessionToken] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+
+  // Master data
+  const [planData, setPlanData] = useState<FinancialPlanningData>(
+    () => {
+      // Try to restore from localStorage
+      if (typeof window !== 'undefined') {
+        try {
+          const stored = localStorage.getItem(STORAGE_KEY);
+          if (stored) {
+            return JSON.parse(stored) as FinancialPlanningData;
+          }
+        } catch { /* ignore */ }
+      }
+      return { ...DEFAULT_PLANNING_DATA };
+    }
+  );
+
+  // Persist data on every update
+  const updateData = useCallback((updater: (prev: FinancialPlanningData) => FinancialPlanningData) => {
+    setPlanData((prev) => {
+      const next = updater(prev);
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      } catch { /* quota */ }
+      return next;
+    });
+  }, []);
+
+  // ── OTP Verified ──
+  const handleVerified = useCallback((token: string, phone: string, email: string) => {
+    setSessionToken(token);
+    setVerified(true);
+    // Pre-fill phone & email into data
+    updateData((prev) => ({
+      ...prev,
+      personalProfile: { ...prev.personalProfile, phone, email },
+    }));
+  }, [updateData]);
+
+  // ── Step Update Handlers ──
+  const handlePersonalUpdate = useCallback((updates: Partial<PersonalProfileData>) => {
+    updateData((prev) => {
+      // Calculate age from DOB if provided
+      let age = prev.personalProfile.age;
+      const dob = updates.dateOfBirth ?? prev.personalProfile.dateOfBirth;
+      if (dob) {
+        const birthDate = new Date(dob);
+        const today = new Date();
+        age = today.getFullYear() - birthDate.getFullYear();
+        const m = today.getMonth() - birthDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+        if (age < 0) age = 0;
+      }
+      return {
+        ...prev,
+        personalProfile: {
+          ...prev.personalProfile,
+          ...updates,
+          age,
+        } as FinancialPlanningData['personalProfile'],
+      };
+    });
+  }, [updateData]);
+
+  const handleCareerIncomeUpdate = useCallback((updates: Partial<CareerIncomeData>) => {
+    updateData((prev) => {
+      // Split updates into career and income sections
+      const careerKeys = ['employmentType', 'industry', 'yearsInCurrentJob', 'incomeStability', 'expectedRetirementAge', 'spouseWorks', 'expectedAnnualGrowth'] as const;
+      const careerUpdates: Record<string, unknown> = {};
+      const incomeUpdates: Record<string, unknown> = {};
+
+      for (const [key, value] of Object.entries(updates)) {
+        if ((careerKeys as readonly string[]).includes(key)) {
+          careerUpdates[key] = value;
+        } else {
+          incomeUpdates[key] = value;
+        }
+      }
+
+      return {
+        ...prev,
+        careerProfile: { ...prev.careerProfile, ...careerUpdates } as FinancialPlanningData['careerProfile'],
+        incomeProfile: { ...prev.incomeProfile, ...incomeUpdates } as FinancialPlanningData['incomeProfile'],
+      };
+    });
+  }, [updateData]);
+
+  const handleAssetsUpdate = useCallback((updates: Partial<AssetProfile>) => {
+    updateData((prev) => ({
+      ...prev,
+      assetProfile: { ...prev.assetProfile, ...updates },
+    }));
+  }, [updateData]);
+
+  const handleLiabilitiesUpdate = useCallback((updates: Partial<LiabilityProfile>) => {
+    updateData((prev) => ({
+      ...prev,
+      liabilityProfile: { ...prev.liabilityProfile, ...updates },
+    }));
+  }, [updateData]);
+
+  // ── Wizard Completion ──
+  const handleComplete = useCallback(async () => {
+    setSubmitting(true);
+    setSubmitError('');
+
+    try {
+      // Build a sensible risk profile from defaults for Phase 1
+      // (Phase 2 will add Steps 5-8 for Insurance, Goals, Risk, Tax)
+      const submissionData: FinancialPlanningData = {
+        ...planData,
+        // Set risk score based on defaults for Phase 1
+        riskProfile: {
+          ...planData.riskProfile,
+          riskScore: 50,
+          riskCategory: 'moderate',
+        },
+      };
+
+      const res = await fetch('/api/financial-planning/submit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+        },
+        body: JSON.stringify({ data: submissionData }),
+      });
+
+      const result = await res.json();
+
+      if (!res.ok) {
+        setSubmitError(result.error || 'Submission failed. Please try again.');
+        return;
+      }
+
+      // Store teaser data for the teaser page
+      localStorage.setItem(
+        'fp-teaser-data',
+        JSON.stringify({
+          teaser: result.teaser,
+          userName: result.userName,
+          userEmail: result.userEmail,
+        })
+      );
+
+      // Clean up wizard data
+      localStorage.removeItem(STORAGE_KEY);
+
+      // Navigate to teaser
+      router.push('/financial-planning/teaser');
+    } catch {
+      setSubmitError('Network error. Please check your connection and try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  }, [planData, sessionToken, router]);
+
+  // ── Build Wizard Steps ──
+  const wizardSteps = useMemo(() => [
+    {
+      id: 1,
+      title: 'Personal',
+      icon: <User className="w-4 h-4" />,
+      component: (
+        <WizardStep
+          title="Personal Profile"
+          description="Tell us about yourself and your family"
+          icon={<User className="w-5 h-5" />}
+        >
+          <PersonalProfileStep
+            data={extractPersonalProfile(planData)}
+            onUpdate={handlePersonalUpdate}
+          />
+        </WizardStep>
+      ),
+    },
+    {
+      id: 2,
+      title: 'Career & Income',
+      icon: <Briefcase className="w-4 h-4" />,
+      component: (
+        <WizardStep
+          title="Career & Income"
+          description="Your employment, income sources and monthly expenses"
+          icon={<Briefcase className="w-5 h-5" />}
+        >
+          <CareerIncomeStep
+            data={extractCareerIncome(planData)}
+            onUpdate={handleCareerIncomeUpdate}
+            maritalStatus={planData.personalProfile.maritalStatus}
+          />
+        </WizardStep>
+      ),
+    },
+    {
+      id: 3,
+      title: 'Assets',
+      icon: <Landmark className="w-4 h-4" />,
+      component: (
+        <WizardStep
+          title="Assets & Investments"
+          description="Your current savings, investments and property"
+          icon={<Landmark className="w-5 h-5" />}
+        >
+          <AssetsInvestmentsStep
+            data={planData.assetProfile}
+            onUpdate={handleAssetsUpdate}
+          />
+        </WizardStep>
+      ),
+    },
+    {
+      id: 4,
+      title: 'Liabilities',
+      icon: <CreditCard className="w-4 h-4" />,
+      component: (
+        <WizardStep
+          title="Loans & Liabilities"
+          description="Outstanding loans, EMIs and credit card debt"
+          icon={<CreditCard className="w-5 h-5" />}
+        >
+          <LiabilitiesStep
+            data={planData.liabilityProfile}
+            onUpdate={handleLiabilitiesUpdate}
+          />
+        </WizardStep>
+      ),
+    },
+  ], [planData, handlePersonalUpdate, handleCareerIncomeUpdate, handleAssetsUpdate, handleLiabilitiesUpdate]);
+
+  // ── Render ──
+
+  // OTP gate
+  if (!verified) {
+    return (
+      <section className="min-h-[80vh] flex items-center justify-center py-12 px-4 bg-gradient-to-b from-slate-50 to-white">
+        <OTPGate onVerified={handleVerified} />
+      </section>
+    );
+  }
+
+  // Submitting overlay
+  if (submitting) {
+    return (
+      <section className="min-h-[80vh] flex items-center justify-center py-12 px-4">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-brand animate-spin mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-primary-700 mb-2">Analyzing Your Financial Health...</h2>
+          <p className="text-slate-500">This may take a few seconds</p>
+        </div>
+      </section>
+    );
+  }
+
+  // Wizard
+  return (
+    <section className="min-h-[80vh] py-8 px-4 bg-gradient-to-b from-slate-50 to-white">
+      {submitError && (
+        <div className="max-w-2xl mx-auto mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm text-center">
+          {submitError}
+          <button
+            onClick={() => setSubmitError('')}
+            className="ml-3 text-red-900 font-semibold hover:underline"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+      <WizardShell
+        steps={wizardSteps}
+        onComplete={handleComplete}
+        storageKey="fp-wizard-step"
+      />
+    </section>
+  );
+}
