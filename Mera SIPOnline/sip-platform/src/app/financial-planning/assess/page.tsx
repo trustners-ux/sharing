@@ -2,7 +2,10 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, Briefcase, Landmark, CreditCard, Loader2 } from 'lucide-react';
+import {
+  User, Briefcase, Landmark, CreditCard, Shield,
+  Target, Brain, Calculator, Loader2,
+} from 'lucide-react';
 
 import { OTPGate } from '@/components/financial-planning/OTPGate';
 import WizardShell from '@/components/financial-planning/WizardShell';
@@ -11,9 +14,23 @@ import PersonalProfileStep from '@/components/financial-planning/steps/PersonalP
 import CareerIncomeStep from '@/components/financial-planning/steps/CareerIncomeStep';
 import AssetsInvestmentsStep from '@/components/financial-planning/steps/AssetsInvestmentsStep';
 import LiabilitiesStep from '@/components/financial-planning/steps/LiabilitiesStep';
+import InsuranceStep from '@/components/financial-planning/steps/InsuranceStep';
+import GoalsStep from '@/components/financial-planning/steps/GoalsStep';
+import RiskBehaviorStep from '@/components/financial-planning/steps/RiskBehaviorStep';
+import EmergencyTaxStep from '@/components/financial-planning/steps/EmergencyTaxStep';
 import { DEFAULT_PLANNING_DATA } from '@/lib/constants/financial-planning';
 
-import type { FinancialPlanningData, AssetProfile, LiabilityProfile } from '@/types/financial-planning';
+import type {
+  FinancialPlanningData,
+  AssetProfile,
+  LiabilityProfile,
+  InsuranceProfile,
+  FinancialGoal,
+  RiskProfile,
+  BehavioralProfile,
+  EmergencyProfile,
+  TaxProfile,
+} from '@/types/financial-planning';
 
 // Storage keys
 const STORAGE_KEY = 'fp-wizard-data';
@@ -113,7 +130,6 @@ export default function AssessPage() {
   // Master data
   const [planData, setPlanData] = useState<FinancialPlanningData>(
     () => {
-      // Try to restore from localStorage
       if (typeof window !== 'undefined') {
         try {
           const stored = localStorage.getItem(STORAGE_KEY);
@@ -141,17 +157,15 @@ export default function AssessPage() {
   const handleVerified = useCallback((token: string, phone: string, email: string) => {
     setSessionToken(token);
     setVerified(true);
-    // Pre-fill phone & email into data
     updateData((prev) => ({
       ...prev,
       personalProfile: { ...prev.personalProfile, phone, email },
     }));
   }, [updateData]);
 
-  // ── Step Update Handlers ──
+  // ── Step 1: Personal Profile ──
   const handlePersonalUpdate = useCallback((updates: Partial<PersonalProfileData>) => {
     updateData((prev) => {
-      // Calculate age from DOB if provided
       let age = prev.personalProfile.age;
       const dob = updates.dateOfBirth ?? prev.personalProfile.dateOfBirth;
       if (dob) {
@@ -173,13 +187,12 @@ export default function AssessPage() {
     });
   }, [updateData]);
 
+  // ── Step 2: Career & Income ──
   const handleCareerIncomeUpdate = useCallback((updates: Partial<CareerIncomeData>) => {
     updateData((prev) => {
-      // Split updates into career and income sections
       const careerKeys = ['employmentType', 'industry', 'yearsInCurrentJob', 'incomeStability', 'expectedRetirementAge', 'spouseWorks', 'expectedAnnualGrowth'] as const;
       const careerUpdates: Record<string, unknown> = {};
       const incomeUpdates: Record<string, unknown> = {};
-
       for (const [key, value] of Object.entries(updates)) {
         if ((careerKeys as readonly string[]).includes(key)) {
           careerUpdates[key] = value;
@@ -187,7 +200,6 @@ export default function AssessPage() {
           incomeUpdates[key] = value;
         }
       }
-
       return {
         ...prev,
         careerProfile: { ...prev.careerProfile, ...careerUpdates } as FinancialPlanningData['careerProfile'],
@@ -196,6 +208,7 @@ export default function AssessPage() {
     });
   }, [updateData]);
 
+  // ── Step 3: Assets ──
   const handleAssetsUpdate = useCallback((updates: Partial<AssetProfile>) => {
     updateData((prev) => ({
       ...prev,
@@ -203,10 +216,57 @@ export default function AssessPage() {
     }));
   }, [updateData]);
 
+  // ── Step 4: Liabilities ──
   const handleLiabilitiesUpdate = useCallback((updates: Partial<LiabilityProfile>) => {
     updateData((prev) => ({
       ...prev,
       liabilityProfile: { ...prev.liabilityProfile, ...updates },
+    }));
+  }, [updateData]);
+
+  // ── Step 5: Insurance ──
+  const handleInsuranceUpdate = useCallback((updates: Partial<InsuranceProfile>) => {
+    updateData((prev) => ({
+      ...prev,
+      insuranceProfile: { ...prev.insuranceProfile, ...updates },
+    }));
+  }, [updateData]);
+
+  // ── Step 6: Goals ──
+  const handleGoalsUpdate = useCallback((goals: FinancialGoal[]) => {
+    updateData((prev) => ({
+      ...prev,
+      goals,
+    }));
+  }, [updateData]);
+
+  // ── Step 7: Risk & Behavior ──
+  const handleRiskUpdate = useCallback((updates: Partial<RiskProfile>) => {
+    updateData((prev) => ({
+      ...prev,
+      riskProfile: { ...prev.riskProfile, ...updates },
+    }));
+  }, [updateData]);
+
+  const handleBehavioralUpdate = useCallback((updates: Partial<BehavioralProfile>) => {
+    updateData((prev) => ({
+      ...prev,
+      behavioralProfile: { ...prev.behavioralProfile, ...updates },
+    }));
+  }, [updateData]);
+
+  // ── Step 8: Emergency & Tax ──
+  const handleEmergencyUpdate = useCallback((updates: Partial<EmergencyProfile>) => {
+    updateData((prev) => ({
+      ...prev,
+      emergencyProfile: { ...prev.emergencyProfile, ...updates },
+    }));
+  }, [updateData]);
+
+  const handleTaxUpdate = useCallback((updates: Partial<TaxProfile>) => {
+    updateData((prev) => ({
+      ...prev,
+      taxProfile: { ...prev.taxProfile, ...updates },
     }));
   }, [updateData]);
 
@@ -216,25 +276,13 @@ export default function AssessPage() {
     setSubmitError('');
 
     try {
-      // Build a sensible risk profile from defaults for Phase 1
-      // (Phase 2 will add Steps 5-8 for Insurance, Goals, Risk, Tax)
-      const submissionData: FinancialPlanningData = {
-        ...planData,
-        // Set risk score based on defaults for Phase 1
-        riskProfile: {
-          ...planData.riskProfile,
-          riskScore: 50,
-          riskCategory: 'moderate',
-        },
-      };
-
       const res = await fetch('/api/financial-planning/submit', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
         },
-        body: JSON.stringify({ data: submissionData }),
+        body: JSON.stringify({ data: planData }),
       });
 
       const result = await res.json();
@@ -244,7 +292,6 @@ export default function AssessPage() {
         return;
       }
 
-      // Store teaser data for the teaser page
       localStorage.setItem(
         'fp-teaser-data',
         JSON.stringify({
@@ -254,10 +301,7 @@ export default function AssessPage() {
         })
       );
 
-      // Clean up wizard data
       localStorage.removeItem(STORAGE_KEY);
-
-      // Navigate to teaser
       router.push('/financial-planning/teaser');
     } catch {
       setSubmitError('Network error. Please check your connection and try again.');
@@ -266,40 +310,25 @@ export default function AssessPage() {
     }
   }, [planData, sessionToken, router]);
 
-  // ── Build Wizard Steps ──
+  // ── Build Wizard Steps (all 8) ──
   const wizardSteps = useMemo(() => [
     {
       id: 1,
       title: 'Personal',
       icon: <User className="w-4 h-4" />,
       component: (
-        <WizardStep
-          title="Personal Profile"
-          description="Tell us about yourself and your family"
-          icon={<User className="w-5 h-5" />}
-        >
-          <PersonalProfileStep
-            data={extractPersonalProfile(planData)}
-            onUpdate={handlePersonalUpdate}
-          />
+        <WizardStep title="Personal Profile" description="Tell us about yourself and your family" icon={<User className="w-5 h-5" />}>
+          <PersonalProfileStep data={extractPersonalProfile(planData)} onUpdate={handlePersonalUpdate} />
         </WizardStep>
       ),
     },
     {
       id: 2,
-      title: 'Career & Income',
+      title: 'Career',
       icon: <Briefcase className="w-4 h-4" />,
       component: (
-        <WizardStep
-          title="Career & Income"
-          description="Your employment, income sources and monthly expenses"
-          icon={<Briefcase className="w-5 h-5" />}
-        >
-          <CareerIncomeStep
-            data={extractCareerIncome(planData)}
-            onUpdate={handleCareerIncomeUpdate}
-            maritalStatus={planData.personalProfile.maritalStatus}
-          />
+        <WizardStep title="Career & Income" description="Your employment, income sources and monthly expenses" icon={<Briefcase className="w-5 h-5" />}>
+          <CareerIncomeStep data={extractCareerIncome(planData)} onUpdate={handleCareerIncomeUpdate} maritalStatus={planData.personalProfile.maritalStatus} />
         </WizardStep>
       ),
     },
@@ -308,40 +337,81 @@ export default function AssessPage() {
       title: 'Assets',
       icon: <Landmark className="w-4 h-4" />,
       component: (
-        <WizardStep
-          title="Assets & Investments"
-          description="Your current savings, investments and property"
-          icon={<Landmark className="w-5 h-5" />}
-        >
-          <AssetsInvestmentsStep
-            data={planData.assetProfile}
-            onUpdate={handleAssetsUpdate}
-          />
+        <WizardStep title="Assets & Investments" description="Your current savings, investments and property" icon={<Landmark className="w-5 h-5" />}>
+          <AssetsInvestmentsStep data={planData.assetProfile} onUpdate={handleAssetsUpdate} />
         </WizardStep>
       ),
     },
     {
       id: 4,
-      title: 'Liabilities',
+      title: 'Debts',
       icon: <CreditCard className="w-4 h-4" />,
       component: (
-        <WizardStep
-          title="Loans & Liabilities"
-          description="Outstanding loans, EMIs and credit card debt"
-          icon={<CreditCard className="w-5 h-5" />}
-        >
-          <LiabilitiesStep
-            data={planData.liabilityProfile}
-            onUpdate={handleLiabilitiesUpdate}
+        <WizardStep title="Loans & Liabilities" description="Outstanding loans, EMIs and credit card debt" icon={<CreditCard className="w-5 h-5" />}>
+          <LiabilitiesStep data={planData.liabilityProfile} onUpdate={handleLiabilitiesUpdate} />
+        </WizardStep>
+      ),
+    },
+    {
+      id: 5,
+      title: 'Insurance',
+      icon: <Shield className="w-4 h-4" />,
+      component: (
+        <WizardStep title="Insurance & Protection" description="Your life, health, and critical illness coverage" icon={<Shield className="w-5 h-5" />}>
+          <InsuranceStep data={planData.insuranceProfile} onUpdate={handleInsuranceUpdate} />
+        </WizardStep>
+      ),
+    },
+    {
+      id: 6,
+      title: 'Goals',
+      icon: <Target className="w-4 h-4" />,
+      component: (
+        <WizardStep title="Financial Goals" description="Define your life goals with target amounts and timelines" icon={<Target className="w-5 h-5" />}>
+          <GoalsStep goals={planData.goals} onUpdate={handleGoalsUpdate} age={planData.personalProfile.age} />
+        </WizardStep>
+      ),
+    },
+    {
+      id: 7,
+      title: 'Risk',
+      icon: <Brain className="w-4 h-4" />,
+      component: (
+        <WizardStep title="Risk & Behavior" description="Understand your risk appetite and investment behavior" icon={<Brain className="w-5 h-5" />}>
+          <RiskBehaviorStep
+            riskData={planData.riskProfile}
+            behavioralData={planData.behavioralProfile}
+            onUpdateRisk={handleRiskUpdate}
+            onUpdateBehavioral={handleBehavioralUpdate}
           />
         </WizardStep>
       ),
     },
-  ], [planData, handlePersonalUpdate, handleCareerIncomeUpdate, handleAssetsUpdate, handleLiabilitiesUpdate]);
+    {
+      id: 8,
+      title: 'Tax & Fund',
+      icon: <Calculator className="w-4 h-4" />,
+      component: (
+        <WizardStep title="Emergency Fund & Tax" description="Tax regime, deductions and emergency preparedness" icon={<Calculator className="w-5 h-5" />}>
+          <EmergencyTaxStep
+            emergencyData={planData.emergencyProfile}
+            taxData={planData.taxProfile}
+            onUpdateEmergency={handleEmergencyUpdate}
+            onUpdateTax={handleTaxUpdate}
+            monthlyExpenses={planData.incomeProfile.monthlyHouseholdExpenses}
+          />
+        </WizardStep>
+      ),
+    },
+  ], [
+    planData,
+    handlePersonalUpdate, handleCareerIncomeUpdate, handleAssetsUpdate, handleLiabilitiesUpdate,
+    handleInsuranceUpdate, handleGoalsUpdate, handleRiskUpdate, handleBehavioralUpdate,
+    handleEmergencyUpdate, handleTaxUpdate,
+  ]);
 
   // ── Render ──
 
-  // OTP gate
   if (!verified) {
     return (
       <section className="min-h-[80vh] flex items-center justify-center py-12 px-4 bg-gradient-to-b from-slate-50 to-white">
@@ -350,38 +420,29 @@ export default function AssessPage() {
     );
   }
 
-  // Submitting overlay
   if (submitting) {
     return (
       <section className="min-h-[80vh] flex items-center justify-center py-12 px-4">
         <div className="text-center">
           <Loader2 className="w-12 h-12 text-brand animate-spin mx-auto mb-4" />
           <h2 className="text-xl font-bold text-primary-700 mb-2">Analyzing Your Financial Health...</h2>
-          <p className="text-slate-500">This may take a few seconds</p>
+          <p className="text-slate-500">Calculating your score across 5 pillars</p>
         </div>
       </section>
     );
   }
 
-  // Wizard
   return (
     <section className="min-h-[80vh] py-8 px-4 bg-gradient-to-b from-slate-50 to-white">
       {submitError && (
         <div className="max-w-2xl mx-auto mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm text-center">
           {submitError}
-          <button
-            onClick={() => setSubmitError('')}
-            className="ml-3 text-red-900 font-semibold hover:underline"
-          >
+          <button onClick={() => setSubmitError('')} className="ml-3 text-red-900 font-semibold hover:underline">
             Dismiss
           </button>
         </div>
       )}
-      <WizardShell
-        steps={wizardSteps}
-        onComplete={handleComplete}
-        storageKey="fp-wizard-step"
-      />
+      <WizardShell steps={wizardSteps} onComplete={handleComplete} storageKey="fp-wizard-step" />
     </section>
   );
 }
