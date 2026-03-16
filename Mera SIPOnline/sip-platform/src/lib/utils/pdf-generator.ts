@@ -67,6 +67,14 @@ async function createWhiteLogo(logoBase64: string): Promise<string | null> {
 }
 
 /**
+ * Sanitize text for jsPDF — Helvetica doesn't support ₹ symbol.
+ * Replace ₹ with Rs. for clean PDF rendering.
+ */
+function sanitizePdfText(text: string): string {
+  return text.replace(/₹/g, 'Rs.').replace(/'/g, '');
+}
+
+/**
  * Scrape the input panel to extract plan parameters for the PDF summary box.
  * Returns structured data about base settings and events.
  */
@@ -148,38 +156,7 @@ function scrapePlanSummary(element: HTMLElement): {
     });
   }
 
-  // Extract step-up / special toggle info as additional settings
-  const stepUpToggle = inputPanel.querySelector('[role="switch"][aria-checked="true"]');
-  if (stepUpToggle) {
-    // Find the label for this toggle
-    const toggleSection = stepUpToggle.closest('.border-t, .border-amber-200, div');
-    if (toggleSection) {
-      const toggleLabel = toggleSection.querySelector('label')?.textContent?.trim() || '';
-      if (toggleLabel) {
-        // Find the active sub-option (percentage vs amount)
-        const activeBtn = toggleSection.querySelector('button.bg-amber-500');
-        const modeText = activeBtn?.textContent?.trim() || '';
-
-        // Find the value input for the step-up
-        const stepLabels = toggleSection.querySelectorAll('label');
-        stepLabels.forEach((sl) => {
-          const slText = sl.textContent?.trim() || '';
-          if (slText.toLowerCase().includes('increase') || slText.toLowerCase().includes('step')) {
-            const slWrapper = sl.closest('div');
-            const slInp = slWrapper?.querySelector('input[type="text"]') as HTMLInputElement | null;
-            if (slInp?.value) {
-              const prefix = slWrapper?.querySelector('.pl-3.pr-1')?.textContent || '';
-              const suffix = slWrapper?.querySelector('.pr-2.text-sm')?.textContent || '';
-              baseSettings.push({
-                label: `Step-Up (${modeText || 'Annual'})`,
-                value: `${prefix}${slInp.value}${suffix ? ' ' + suffix : ''}`,
-              });
-            }
-          }
-        });
-      }
-    }
-  }
+  // Step-up / increment toggle info is captured per-event below (not in baseSettings)
 
   // Extract events
   const events: { type: string; color: 'green' | 'amber'; details: string[] }[] = [];
@@ -221,6 +198,33 @@ function scrapePlanSummary(element: HTMLElement): {
         details.push(`${text}: ${prefix}${inp.value}${suffix ? ' ' + suffix : ''}`);
       }
     });
+
+    // Capture step-up / increment toggle info from this event card
+    const toggleSwitch = el.querySelector('[role="switch"][aria-checked="true"]');
+    if (toggleSwitch) {
+      const toggleSection = toggleSwitch.closest('.border-t');
+      if (toggleSection) {
+        // Find the active mode button (percentage vs amount) - works for both emerald (SIP) and amber (SWP)
+        const activeBtn = toggleSection.querySelector('button.bg-emerald-500, button.bg-amber-500');
+        const modeText = activeBtn?.textContent?.trim() || '';
+
+        // Find the value input for the step-up
+        const stepLabels = toggleSection.querySelectorAll('label');
+        stepLabels.forEach((sl) => {
+          const slText = sl.textContent?.trim() || '';
+          if (slText.toLowerCase().includes('increase') || slText.toLowerCase().includes('step')) {
+            const slWrapper = sl.closest('div');
+            const slInp = slWrapper?.querySelector('input[type="text"]') as HTMLInputElement | null;
+            if (slInp?.value) {
+              const slPrefix = slWrapper?.querySelector('.pl-3.pr-1')?.textContent || '';
+              const slSuffix = slWrapper?.querySelector('.pr-2.text-sm')?.textContent || '';
+              const modeLabel = modeText === '+%' ? 'Percentage' : modeText === '+₹' ? 'Amount' : 'Annual';
+              details.push(`Annual Step-Up (${modeLabel}): ${slPrefix}${slInp.value}${slSuffix ? ' ' + slSuffix : ''}`);
+            }
+          }
+        });
+      }
+    }
 
     events.push({
       type: typeName,
@@ -830,7 +834,7 @@ export async function generateCalculatorPDF({ elementId, title, fileName }: PDFO
     pdf.setTextColor(30, 41, 59); // slate-800
     pdf.setFontSize(10);
     pdf.setFont('helvetica', 'bold');
-    pdf.text(setting.value, bx + 3, by + 11);
+    pdf.text(sanitizePdfText(setting.value), bx + 3, by + 11);
   }
 
   const settingsRows = Math.ceil(planSummary.baseSettings.length / 2);
@@ -879,19 +883,19 @@ export async function generateCalculatorPDF({ elementId, title, fileName }: PDFO
       } else {
         pdf.setFillColor(146, 64, 14); // amber-800
       }
-      const badgeW = pdf.getTextWidth(ev.type) * 0.75 + 6;
-      pdf.roundedRect(ex + 3, ey + 2, badgeW, 5, 1, 1, 'F');
-      pdf.setTextColor(255, 255, 255);
       pdf.setFontSize(6);
       pdf.setFont('helvetica', 'bold');
-      pdf.text(ev.type, ex + 6, ey + 5.5);
+      const badgeW = pdf.getTextWidth(ev.type) + 8;
+      pdf.roundedRect(ex + 3, ey + 2, badgeW, 5, 1, 1, 'F');
+      pdf.setTextColor(255, 255, 255);
+      pdf.text(ev.type, ex + 3 + badgeW / 2, ey + 5.5, { align: 'center' });
 
       // Details
       pdf.setTextColor(71, 85, 105);
       pdf.setFontSize(6.5);
       pdf.setFont('helvetica', 'normal');
       ev.details.forEach((detail, di) => {
-        pdf.text(detail, ex + 3, ey + 10 + di * 4);
+        pdf.text(sanitizePdfText(detail), ex + 3, ey + 10 + di * 4);
       });
     }
 
@@ -940,7 +944,7 @@ export async function generateCalculatorPDF({ elementId, title, fileName }: PDFO
       }
       pdf.setFontSize(11);
       pdf.setFont('helvetica', 'bold');
-      pdf.text(item.value, margin + 5, y + 12);
+      pdf.text(sanitizePdfText(item.value), margin + 5, y + 12);
 
       y += statusBoxH + 4;
     });
@@ -969,7 +973,7 @@ export async function generateCalculatorPDF({ elementId, title, fileName }: PDFO
       pdf.setTextColor(30, 64, 175);
       pdf.setFontSize(10);
       pdf.setFont('helvetica', 'bold');
-      pdf.text(item.value, rx + 3, ry + 11);
+      pdf.text(sanitizePdfText(item.value), rx + 3, ry + 11);
     }
 
     const resRows = Math.ceil(regularItems.length / 2);
@@ -987,7 +991,7 @@ export async function generateCalculatorPDF({ elementId, title, fileName }: PDFO
     pdf.setTextColor(71, 85, 105);
     pdf.setFontSize(7);
     pdf.setFont('helvetica', 'normal');
-    const journeyLines = pdf.splitTextToSize(planSummary.journeySummary, contentWidth - 8);
+    const journeyLines = pdf.splitTextToSize(sanitizePdfText(planSummary.journeySummary), contentWidth - 8);
     pdf.text(journeyLines.slice(0, 2), margin + 4, y + 5);
     y += 16;
   }
