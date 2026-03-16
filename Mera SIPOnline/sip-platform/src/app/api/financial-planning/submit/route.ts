@@ -85,11 +85,25 @@ export async function POST(request: Request) {
       console.error('Lead capture error');
     }
 
-    // Fire-and-forget: trigger report generation
-    // In Phase 3, this will call /api/financial-planning/generate-report
-    // For now, just log that report generation would happen
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[FP] Report generation would be triggered for:', data.personalProfile.fullName);
+    // Fire-and-forget: trigger full report generation (Claude AI + PDF + email)
+    try {
+      const baseUrl = process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : 'http://localhost:3000';
+
+      fetch(`${baseUrl}/api/financial-planning/generate-report`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          data,
+          userName: data.personalProfile.fullName,
+          userEmail: data.personalProfile.email,
+        }),
+      }).catch((err) => {
+        console.error('[FP] Report generation trigger failed:', err);
+      });
+    } catch {
+      console.error('[FP] Failed to trigger report generation');
     }
 
     return NextResponse.json({
