@@ -123,10 +123,10 @@ export default function TeaserDashboard({ data, userName, userEmail }: TeaserDas
             <Shield className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-base font-bold mb-1">Your Detailed Report is On Its Way!</h3>
+            <h3 className="text-base font-bold mb-1">Your Detailed Report is Being Reviewed!</h3>
             <p className="text-sm text-teal-100 mb-3">
               Your comprehensive 10-page Financial Health Report with AI-powered personalized
-              recommendations is being generated. Check your inbox at <strong className="text-white">{userEmail}</strong> — it should arrive within a few minutes.
+              recommendations is being reviewed by our expert team. It will be delivered to <strong className="text-white">{userEmail}</strong> shortly — our advisors personally review every report to ensure accuracy.
             </p>
             <div className="text-xs text-teal-200">
               Includes: Net Worth Analysis • Retirement Gap • Insurance Check • Goal Planning • Action Plan
