@@ -189,7 +189,7 @@ export function Header() {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center justify-center flex-1 gap-0.5 xl:gap-1 mx-2">
+          <nav className="hidden lg:flex items-center justify-center flex-1 min-w-0 mx-1 xl:mx-3">
             {NAVIGATION.map((item) => {
               const Icon = iconMap[item.label];
               const hasChildren = item.children && item.children.length > 0;
@@ -207,20 +207,20 @@ export function Header() {
                       handleNavClick(e, item.label, !!hasChildren);
                     }}
                     className={cn(
-                      'flex items-center gap-1 px-2.5 xl:px-3 py-2 text-[13px] xl:text-sm font-medium rounded-md transition-all duration-200 relative z-10 whitespace-nowrap',
+                      'flex items-center gap-1 px-1.5 xl:px-2.5 py-1.5 xl:py-2 text-[12px] xl:text-[13px] font-medium rounded-md transition-all duration-200 relative z-10 whitespace-nowrap',
                       isNavActive(pathname, item.href, !!hasChildren)
                         ? 'text-brand bg-brand-50/80 shadow-sm'
                         : 'text-slate-600 hover:text-primary-700 hover:bg-surface-200'
                     )}
                   >
-                    {Icon && <Icon className="w-4 h-4" />}
+                    {Icon && <Icon className="w-3.5 h-3.5 hidden xl:block" />}
                     {item.label}
                     {item.badge && (
-                      <span className="ml-1 px-1.5 py-0.5 text-[9px] font-bold bg-amber-400 text-slate-900 rounded-full uppercase leading-none">
+                      <span className="px-1 py-0.5 text-[8px] xl:text-[9px] font-bold bg-amber-400 text-slate-900 rounded-full uppercase leading-none">
                         {item.badge}
                       </span>
                     )}
-                    {hasChildren && <ChevronDown className="w-3 h-3 ml-0.5" />}
+                    {hasChildren && <ChevronDown className="w-2.5 h-2.5 xl:w-3 xl:h-3" />}
                   </Link>
 
                   {/* Dropdown */}
@@ -286,14 +286,14 @@ export function Header() {
           </nav>
 
           {/* Right Actions */}
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 xl:gap-2 shrink-0">
             <a
               href="https://trustner.investwell.app/app/#/login"
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden lg:inline-flex items-center gap-1.5 text-[13px] font-bold px-4 py-2 rounded-full border-2 border-[#4A7CB5] text-[#4A7CB5] bg-white hover:bg-[#4A7CB5] hover:text-white transition-all duration-300 whitespace-nowrap"
+              className="hidden lg:inline-flex items-center gap-1 text-[11px] xl:text-[13px] font-bold px-3 xl:px-4 py-1.5 xl:py-2 rounded-full border-2 border-[#4A7CB5] text-[#4A7CB5] bg-white hover:bg-[#4A7CB5] hover:text-white transition-all duration-300 whitespace-nowrap"
             >
-              <LogIn className="w-3.5 h-3.5" />
+              <LogIn className="w-3 h-3 xl:w-3.5 xl:h-3.5" />
               Sign In
             </a>
 
@@ -301,9 +301,9 @@ export function Header() {
               href="https://trustner.investwell.app/app/#/kycOnBoarding/mobileSignUp"
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden sm:inline-flex items-center gap-1.5 text-[13px] font-bold px-4 py-2 rounded-full bg-[#4A7CB5] text-white hover:bg-[#3D6A9E] transition-all duration-300 shadow-sm hover:shadow-md whitespace-nowrap"
+              className="hidden sm:inline-flex items-center gap-1 text-[11px] xl:text-[13px] font-bold px-3 xl:px-4 py-1.5 xl:py-2 rounded-full bg-[#4A7CB5] text-white hover:bg-[#3D6A9E] transition-all duration-300 shadow-sm hover:shadow-md whitespace-nowrap"
             >
-              <UserPlus className="w-3.5 h-3.5" />
+              <UserPlus className="w-3 h-3 xl:w-3.5 xl:h-3.5" />
               Sign Up
             </a>
 
