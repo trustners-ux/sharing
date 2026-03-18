@@ -25,8 +25,9 @@ const TicketDetail = () => {
         api.get(`/insurance/tickets/${id}/comments`),
       ]);
 
-      setTicket(ticketRes.data);
-      setComments(commentsRes.data || []);
+      // Interceptor already unwraps { success, data } → direct objects
+      setTicket(ticketRes);
+      setComments(commentsRes || []);
     } catch (err) {
       setError('Failed to load ticket details');
       console.error(err);
@@ -45,7 +46,7 @@ const TicketDetail = () => {
         message: newComment,
       });
 
-      setComments([...comments, res.data]);
+      setComments([...comments, res]);
       setNewComment('');
     } catch (err) {
       alert('Failed to add comment');
@@ -58,7 +59,7 @@ const TicketDetail = () => {
   const handleStatusChange = async (newStatus) => {
     try {
       const res = await api.patch(`/insurance/tickets/${id}`, { status: newStatus });
-      setTicket(res.data);
+      setTicket(res);
     } catch (err) {
       alert('Failed to update ticket');
       console.error(err);

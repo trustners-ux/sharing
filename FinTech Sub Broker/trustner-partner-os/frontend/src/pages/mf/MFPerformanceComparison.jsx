@@ -25,7 +25,8 @@ const MFPerformanceComparison = () => {
           limit: 100,
         },
       });
-      setFunds(res.data.funds || []);
+      // Interceptor unwraps { success, data } → res = { funds: [...] }
+      setFunds(res?.funds || []);
     } catch (err) {
       setError('Failed to load fund performance data.');
       console.error(err);

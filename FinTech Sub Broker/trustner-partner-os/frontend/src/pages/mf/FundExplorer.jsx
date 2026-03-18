@@ -26,7 +26,8 @@ const FundExplorer = () => {
           limit: 50,
         },
       });
-      setFunds(res.data.funds || []);
+      // Interceptor unwraps { success, data } → res = { funds: [...] }
+      setFunds(res?.funds || []);
     } catch (err) {
       setError('Failed to load funds. Please try again later.');
       console.error(err);
