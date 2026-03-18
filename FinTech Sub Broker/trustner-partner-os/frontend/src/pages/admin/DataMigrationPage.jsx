@@ -95,7 +95,52 @@ function parseCSVLine(line) {
 }
 
 /**
+ * Known VJ Infosoft header keywords — if a row contains 3+ of these, it's the header row
+ */
+const KNOWN_HEADER_KEYWORDS = [
+  'sr no', 'policy no', 'company', 'insured name', 'insurance type',
+  'client id', 'name', 'group head', 'email', 'mobileno', 'mobile',
+  'pos name', 'customer name', 'net premium', 'gross premium',
+  'od premium', 'tp premium', 'start date', 'end date', 'expiry date',
+  'policy date', 'rsd', 'red', 'broker code', 'product name',
+  'vehicle no', 'registration no', 'make', 'model',
+];
+
+/**
+ * Detect if a row of values looks like a header row
+ * Returns true if 3+ cells match known header keywords
+ */
+function isHeaderRow(rowValues) {
+  if (!rowValues || rowValues.length < 3) return false;
+  let matchCount = 0;
+  for (const val of rowValues) {
+    const lower = String(val || '').trim().toLowerCase();
+    if (lower.length === 0 || lower.startsWith('__empty')) continue;
+    if (KNOWN_HEADER_KEYWORDS.some(kw => lower.includes(kw) || kw.includes(lower))) {
+      matchCount++;
+    }
+  }
+  return matchCount >= 2;
+}
+
+/**
+ * Fallback: detect header row as the first row with 4+ non-empty, non-numeric short strings
+ */
+function looksLikeHeaders(rowValues) {
+  if (!rowValues || rowValues.length < 3) return false;
+  let textCellCount = 0;
+  for (const val of rowValues) {
+    const s = String(val || '').trim();
+    if (s.length > 0 && s.length < 50 && isNaN(Number(s)) && !(s instanceof Date)) {
+      textCellCount++;
+    }
+  }
+  return textCellCount >= 4;
+}
+
+/**
  * Parse an Excel file (.xls/.xlsx) using SheetJS
+ * Auto-detects the header row by skipping VJ Infosoft title/description rows
  * Returns { headers, rows } same format as parseCSV
  */
 function parseExcelFile(arrayBuffer) {
@@ -103,23 +148,49 @@ function parseExcelFile(arrayBuffer) {
   const sheetName = workbook.SheetNames[0];
   const sheet = workbook.Sheets[sheetName];
 
-  // Convert to JSON with header row
-  const rawData = XLSX.utils.sheet_to_json(sheet, { defval: '' });
-  if (rawData.length === 0) return { headers: [], rows: [] };
+  // Convert to raw 2D array (no header assumption)
+  const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false });
+  if (rawRows.length < 2) return { headers: [], rows: [] };
 
-  const headers = Object.keys(rawData[0]);
-  const rows = rawData.map((row) => {
+  // Find the actual header row — skip VJ Infosoft title/description rows
+  let headerRowIdx = 0;
+  for (let i = 0; i < Math.min(rawRows.length, 15); i++) {
+    if (isHeaderRow(rawRows[i])) {
+      headerRowIdx = i;
+      break;
+    }
+    if (i > 0 && looksLikeHeaders(rawRows[i])) {
+      headerRowIdx = i;
+      break;
+    }
+  }
+
+  // Extract headers (clean up names)
+  const rawHeaders = rawRows[headerRowIdx];
+  const headers = rawHeaders.map((h, idx) => {
+    const name = String(h || '').trim();
+    return name || `Column_${idx + 1}`;
+  });
+
+  // Extract data rows (everything after header row)
+  const rows = [];
+  for (let i = headerRowIdx + 1; i < rawRows.length; i++) {
+    const rawRow = rawRows[i];
+    // Skip completely empty rows
+    const hasData = rawRow.some(cell => String(cell || '').trim() !== '');
+    if (!hasData) continue;
+
     const obj = {};
-    headers.forEach((h) => {
-      let val = row[h];
+    headers.forEach((h, j) => {
+      let val = rawRow[j];
       // Convert Date objects to string
       if (val instanceof Date) {
         val = val.toLocaleDateString('en-GB'); // DD/MM/YYYY format
       }
       obj[h] = val != null ? String(val).trim() : '';
     });
-    return obj;
-  });
+    rows.push(obj);
+  }
 
   return { headers, rows };
 }
