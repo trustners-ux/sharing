@@ -664,11 +664,31 @@ export class DataMigrationService {
     });
     if (existing) return existing;
 
+    // Create a system user for VJ imports placeholder POSP
+    let vjUser = await this.prisma.user.findFirst({
+      where: { email: 'vjimport@trustner.in' },
+    });
+    if (!vjUser) {
+      vjUser = await this.prisma.user.create({
+        data: {
+          email: 'vjimport@trustner.in',
+          name: 'VJ Infosoft Import',
+          passwordHash: 'SYSTEM_PLACEHOLDER_NOT_FOR_LOGIN',
+          role: 'POSP',
+          isActive: false,
+        },
+      });
+    }
+
     return this.prisma.pOSPAgent.create({
       data: {
         agentCode: 'TIBPL-VJ-DEFAULT',
+        userId: vjUser.id,
+        category: 'ALL',
         firstName: 'VJ Infosoft',
         lastName: 'Import',
+        dateOfBirth: new Date('2000-01-01'),
+        gender: 'Other',
         phone: '0000000000',
         email: 'vjimport@trustner.in',
         status: 'ACTIVE',
