@@ -189,6 +189,105 @@ export class DashboardService {
     };
   }
 
+  /**
+   * MF Summary for the unified dashboard
+   */
+  async getMFSummary() {
+    const [aum, activeSIPs, monthlyCommission] = await Promise.all([
+      this.getTotalAUM(),
+      this.prismaService.sIPRegistration.count({ where: { status: 'ACTIVE' } }),
+      this.getMonthlyCommission(),
+    ]);
+
+    return {
+      aum,
+      activeSIPs,
+      monthlyCommission,
+    };
+  }
+
+  /**
+   * Insurance Summary for the unified dashboard
+   */
+  async getInsuranceSummary() {
+    try {
+      const [policyCount, gwpResult, pendingClaims, upcomingRenewals] = await Promise.all([
+        this.prismaService.insurancePolicy.count({ where: { status: 'ACTIVE' } }).catch(() => 0),
+        this.prismaService.insurancePolicy.aggregate({
+          _sum: { totalPremium: true },
+          where: { status: 'ACTIVE' },
+        }).catch(() => ({ _sum: { totalPremium: null } })),
+        this.prismaService.insuranceClaim.count({ where: { status: { in: ['SUBMITTED', 'UNDER_REVIEW'] } } }).catch(() => 0),
+        this.prismaService.insurancePolicy.count({
+          where: {
+            status: 'ACTIVE',
+            policyEndDate: {
+              gte: new Date(),
+              lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Next 30 days
+            },
+          },
+        }).catch(() => 0),
+      ]);
+
+      return {
+        gwp: gwpResult._sum?.totalPremium?.toNumber?.() || gwpResult._sum?.totalPremium || 0,
+        activePolicies: policyCount,
+        monthlyCommission: 0, // IB commission not yet tracked
+        pendingClaims,
+        upcomingRenewals,
+      };
+    } catch (err) {
+      this.logger.warn('Insurance summary partial failure', err.message);
+      return { gwp: 0, activePolicies: 0, monthlyCommission: 0, pendingClaims: 0, upcomingRenewals: 0 };
+    }
+  }
+
+  /**
+   * Revenue chart — 12-month combined revenue for MF + IB
+   */
+  async getRevenueChart() {
+    // Return placeholder structure; actual data will populate as commissions accumulate
+    const months = [];
+    const now = new Date();
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push({
+        month: d.toLocaleString('en-IN', { month: 'short', year: '2-digit' }),
+        mfCommission: 0,
+        ibCommission: 0,
+      });
+    }
+    return months;
+  }
+
+  /**
+   * Recent activity across both MF and Insurance
+   */
+  async getRecentActivity() {
+    try {
+      const recentPolicies = await this.prismaService.insurancePolicy.findMany({
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          policyNumber: true,
+          customerName: true,
+          createdAt: true,
+          department: true,
+        },
+      }).catch(() => []);
+
+      return recentPolicies.map((p) => ({
+        icon: '📋',
+        title: `New ${p.department || 'Insurance'} Policy`,
+        description: `${p.customerName} — ${p.policyNumber}`,
+        time: p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-IN') : '',
+      }));
+    } catch {
+      return [];
+    }
+  }
+
   // ============================================================================
   // PRIVATE HELPER METHODS
   // ============================================================================

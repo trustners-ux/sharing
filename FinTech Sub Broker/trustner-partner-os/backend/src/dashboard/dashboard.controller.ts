@@ -98,6 +98,46 @@ export class DashboardController {
   }
 
   /**
+   * Get MF summary for unified dashboard
+   */
+  @Get('mf-summary')
+  @ApiOperation({ summary: 'Get MF summary for unified dashboard' })
+  @ApiResponse({ status: 200, description: 'MF summary data' })
+  async getMFSummary() {
+    return this.dashboardService.getMFSummary();
+  }
+
+  /**
+   * Get insurance summary for unified dashboard
+   */
+  @Get('insurance-summary')
+  @ApiOperation({ summary: 'Get insurance summary for unified dashboard' })
+  @ApiResponse({ status: 200, description: 'Insurance summary data' })
+  async getInsuranceSummary() {
+    return this.dashboardService.getInsuranceSummary();
+  }
+
+  /**
+   * Get combined revenue chart data
+   */
+  @Get('revenue-chart')
+  @ApiOperation({ summary: 'Get revenue chart for unified dashboard' })
+  @ApiResponse({ status: 200, description: 'Revenue chart data' })
+  async getRevenueChart() {
+    return this.dashboardService.getRevenueChart();
+  }
+
+  /**
+   * Get recent activity across both MF and Insurance
+   */
+  @Get('recent-activity')
+  @ApiOperation({ summary: 'Get recent activity for unified dashboard' })
+  @ApiResponse({ status: 200, description: 'Recent activity data' })
+  async getRecentActivity() {
+    return this.dashboardService.getRecentActivity();
+  }
+
+  /**
    * Get system statistics
    */
   @Get('stats')

@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsDateString, IsIn } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class MISFilterDto {
@@ -12,4 +12,6 @@ export class MISFilterDto {
   @IsString() @IsOptional() search?: string;
   @Type(() => Number) @IsNumber() @IsOptional() page?: number;
   @Type(() => Number) @IsNumber() @IsOptional() limit?: number;
+  @IsString() @IsOptional() sortBy?: string;
+  @IsIn(['asc', 'desc']) @IsOptional() sortOrder?: 'asc' | 'desc';
 }
