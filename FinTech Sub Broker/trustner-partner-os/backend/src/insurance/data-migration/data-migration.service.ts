@@ -491,6 +491,13 @@ export class DataMigrationService {
 
   // ─── 6. SMART IMPORT: auto-detect, import, and sync ────────
   async smartImport(rows: any[], headers: string[], userId: string) {
+    if (!rows || !Array.isArray(rows) || rows.length === 0) {
+      throw new BadRequestException('No data rows provided');
+    }
+    if (!headers || !Array.isArray(headers)) {
+      // Try to extract headers from the first row's keys
+      headers = rows.length > 0 ? Object.keys(rows[0]) : [];
+    }
     this.logger.log(`Smart import: ${rows.length} rows, headers: ${headers.slice(0, 5).join(', ')}...`);
 
     // Auto-detect CSV type from column headers
@@ -551,7 +558,12 @@ export class DataMigrationService {
     // Auto-sync to InsurancePolicy (if we imported policy/payout/renewal data)
     let syncResult = null;
     if (detectedType !== 'clients') {
-      syncResult = await this.syncMISToInsurancePolicies(userId);
+      try {
+        syncResult = await this.syncMISToInsurancePolicies(userId);
+      } catch (syncErr) {
+        this.logger.error(`Sync failed: ${syncErr.message}`);
+        syncResult = { synced: 0, skipped: 0, errors: [`Sync failed: ${syncErr.message}`] };
+      }
     }
 
     return {

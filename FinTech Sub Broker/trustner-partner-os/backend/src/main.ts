@@ -43,6 +43,10 @@ async function bootstrap() {
     );
   }
 
+  // Increase JSON body size limit for data imports (VJ Infosoft Excel files can be large)
+  app.use(express.json({ limit: '10mb' }));
+  app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
   // Compression middleware
   app.use(compression());
 
