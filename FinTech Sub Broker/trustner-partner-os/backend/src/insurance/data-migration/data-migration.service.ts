@@ -714,11 +714,14 @@ export class DataMigrationService {
     }
 
     // Create new
+    const shortCode = companyName.replace(/[^A-Z]/gi, '').substring(0, 8).toUpperCase() || 'UNK';
+    const companyCode = `IC-${shortCode}-${Date.now().toString(36).toUpperCase()}`;
     const company = await this.prisma.insuranceCompany.create({
       data: {
         companyName,
-        shortCode: companyName.replace(/[^A-Z]/gi, '').substring(0, 8).toUpperCase() || 'UNK',
-        status: 'ACTIVE',
+        companyCode,
+        companyType: 'GENERAL',
+        isActive: true,
       },
     });
     cache[key] = company.id;
@@ -746,12 +749,14 @@ export class DataMigrationService {
       return existing.id;
     }
 
+    const productCode = `IP-${productName.replace(/[^A-Z0-9]/gi, '').substring(0, 8).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
     const product = await this.prisma.insuranceProduct.create({
       data: {
         productName,
+        productCode,
         companyId,
         lob: lob as any,
-        status: 'ACTIVE',
+        isActive: true,
       },
     });
     cache[cacheKey] = product.id;
