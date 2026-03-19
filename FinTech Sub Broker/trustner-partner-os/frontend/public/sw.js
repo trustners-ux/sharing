@@ -1,4 +1,4 @@
-const CACHE_NAME = 'trustner-v1';
+const CACHE_NAME = 'trustner-v2';
 const OFFLINE_PAGE = '/offline.html';
 
 // Assets to cache on installation
@@ -81,9 +81,34 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cache-first strategy for static assets
+  // Network-first strategy for JS/CSS (Vite uses content-hashed filenames)
+  // Cache-first only for images/fonts which change less frequently
   if (
-    url.pathname.match(/\.(js|css|png|jpg|jpeg|svg|gif|webp|woff|woff2|ttf|eot)$/i)
+    url.pathname.match(/\.(js|css)$/i)
+  ) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.status === 200) {
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, responseToCache);
+            });
+          }
+          return response;
+        })
+        .catch(() => {
+          return caches.match(request).then((response) => {
+            return response || new Response('', { status: 503 });
+          });
+        })
+    );
+    return;
+  }
+
+  // Cache-first for images and fonts (change less frequently)
+  if (
+    url.pathname.match(/\.(png|jpg|jpeg|svg|gif|webp|woff|woff2|ttf|eot)$/i)
   ) {
     event.respondWith(
       caches.match(request).then((response) => {
@@ -92,7 +117,6 @@ self.addEventListener('fetch', (event) => {
         }
         return fetch(request)
           .then((response) => {
-            // Cache successful responses
             if (response.status === 200) {
               const responseToCache = response.clone();
               caches.open(CACHE_NAME).then((cache) => {
@@ -102,7 +126,6 @@ self.addEventListener('fetch', (event) => {
             return response;
           })
           .catch(() => {
-            // Return a placeholder for images
             if (request.destination === 'image') {
               return new Response(
                 '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><text x="50%" y="50%" text-anchor="middle" dy=".3em" fill="#999">Offline</text></svg>',

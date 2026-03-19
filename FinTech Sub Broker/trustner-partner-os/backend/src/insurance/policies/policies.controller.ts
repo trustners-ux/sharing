@@ -90,6 +90,64 @@ export class PoliciesController {
     );
   }
 
+  // ─── Static routes MUST come before :id parameterized route ───
+
+  /**
+   * Get bulk policies for export
+   */
+  @Get('export/bulk')
+  @Roles(UserRole.SUPER_ADMIN, UserRole.COMPLIANCE_ADMIN)
+  @ApiOperation({
+    summary: 'Get bulk policies for export',
+    description: 'Fetch multiple policies for MIS export',
+  })
+  @ApiResponse({ status: 200, description: 'Bulk policies data' })
+  async getBulkPolicies(
+    @Query('pospId') pospId?: string,
+    @Query('companyId') companyId?: string,
+    @Query('lob') lob?: string,
+    @Query('status') status?: string,
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string,
+  ) {
+    return this.policiesService.getBulkPolicies({
+      pospId,
+      companyId,
+      lob: lob as any,
+      status: status as any,
+      fromDate: fromDate ? new Date(fromDate) : undefined,
+      toDate: toDate ? new Date(toDate) : undefined,
+    });
+  }
+
+  /**
+   * Get expiring policies
+   */
+  @Get('renewal/expiring')
+  @ApiOperation({
+    summary: 'Get expiring policies',
+    description: 'Get policies expiring in specified number of days for renewal management',
+  })
+  @ApiResponse({ status: 200, description: 'Expiring policies list' })
+  async getExpiringPolicies(@Query('days') days: string = '90') {
+    return this.policiesService.getExpiringPolicies(parseInt(days));
+  }
+
+  /**
+   * Get policy statistics
+   */
+  @Get('stats/overview')
+  @ApiOperation({
+    summary: 'Get policy statistics',
+    description: 'Get total policies, active count, expired count, cancelled count, total premium',
+  })
+  @ApiResponse({ status: 200, description: 'Statistics data' })
+  async getStatistics() {
+    return this.policiesService.getStatistics();
+  }
+
+  // ─── Parameterized routes below ───
+
   /**
    * Get single policy
    */
@@ -221,59 +279,5 @@ export class PoliciesController {
   @ApiResponse({ status: 200, description: 'Timeline data' })
   async getPolicyTimeline(@Param('id') id: string) {
     return this.policiesService.getPolicyTimeline(id);
-  }
-
-  /**
-   * Get bulk policies
-   */
-  @Get('export/bulk')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.COMPLIANCE_ADMIN)
-  @ApiOperation({
-    summary: 'Get bulk policies for export',
-    description: 'Fetch multiple policies for MIS export',
-  })
-  @ApiResponse({ status: 200, description: 'Bulk policies data' })
-  async getBulkPolicies(
-    @Query('pospId') pospId?: string,
-    @Query('companyId') companyId?: string,
-    @Query('lob') lob?: string,
-    @Query('status') status?: string,
-    @Query('fromDate') fromDate?: string,
-    @Query('toDate') toDate?: string,
-  ) {
-    return this.policiesService.getBulkPolicies({
-      pospId,
-      companyId,
-      lob: lob as any,
-      status: status as any,
-      fromDate: fromDate ? new Date(fromDate) : undefined,
-      toDate: toDate ? new Date(toDate) : undefined,
-    });
-  }
-
-  /**
-   * Get expiring policies
-   */
-  @Get('renewal/expiring')
-  @ApiOperation({
-    summary: 'Get expiring policies',
-    description: 'Get policies expiring in specified number of days for renewal management',
-  })
-  @ApiResponse({ status: 200, description: 'Expiring policies list' })
-  async getExpiringPolicies(@Query('days') days: string = '90') {
-    return this.policiesService.getExpiringPolicies(parseInt(days));
-  }
-
-  /**
-   * Get policy statistics
-   */
-  @Get('stats/overview')
-  @ApiOperation({
-    summary: 'Get policy statistics',
-    description: 'Get total policies, active count, expired count, cancelled count, total premium',
-  })
-  @ApiResponse({ status: 200, description: 'Statistics data' })
-  async getStatistics() {
-    return this.policiesService.getStatistics();
   }
 }

@@ -447,7 +447,7 @@ export class MISEntryService {
           hierarchyNode: { include: { hierarchyLevel: true } },
           verifications: { orderBy: { verifiedAt: 'desc' }, take: 1 },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { [filters.sortBy || 'createdAt']: filters.sortOrder || 'desc' },
       }),
       this.prisma.mISEntry.count({ where }),
     ]);

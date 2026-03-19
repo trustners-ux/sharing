@@ -18,6 +18,7 @@ import { MISModule } from './mis/mis.module';
 import { ContestModule } from './contest/contest.module';
 import { InsuranceClientsModule } from './clients/insurance-clients.module';
 import { PospCategoryModule } from './posp-category/posp-category.module';
+import { DataMigrationModule } from './data-migration/data-migration.module';
 
 /**
  * Insurance Broking Module
@@ -47,6 +48,7 @@ import { PospCategoryModule } from './posp-category/posp-category.module';
     ContestModule,
     InsuranceClientsModule,
     PospCategoryModule,
+    DataMigrationModule,
   ],
   controllers: [],
   providers: [],
@@ -69,6 +71,7 @@ import { PospCategoryModule } from './posp-category/posp-category.module';
     ContestModule,
     InsuranceClientsModule,
     PospCategoryModule,
+    DataMigrationModule,
   ],
 })
 export class InsuranceModule {}

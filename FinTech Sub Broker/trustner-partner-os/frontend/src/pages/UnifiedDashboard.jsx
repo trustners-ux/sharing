@@ -49,7 +49,7 @@ const UnifiedDashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const safeGet = (url) => api.get(url).catch(() => ({ data: null }));
+      const safeGet = (url) => api.get(url).catch(() => null);
       const [mfRes, insuranceRes, revenueRes, activityRes] = await Promise.all([
         safeGet('/dashboard/mf-summary'),
         safeGet('/dashboard/insurance-summary'),
@@ -58,10 +58,10 @@ const UnifiedDashboard = () => {
       ]);
 
       setDashboardData((prev) => ({
-        mf: mfRes.data || prev.mf,
-        insurance: insuranceRes.data || prev.insurance,
-        revenueChart: revenueRes.data || prev.revenueChart,
-        recentActivity: activityRes.data || prev.recentActivity,
+        mf: mfRes || prev.mf,
+        insurance: insuranceRes || prev.insurance,
+        revenueChart: revenueRes || prev.revenueChart,
+        recentActivity: activityRes || prev.recentActivity,
       }));
     } catch (err) {
       console.error('Dashboard data fetch error:', err);

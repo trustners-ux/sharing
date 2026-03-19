@@ -19,6 +19,7 @@ const PoliciesPage = lazy(() => import('./pages/insurance/PoliciesPage'));
 const PolicyDetail = lazy(() => import('./pages/insurance/PolicyDetail'));
 const ClaimsPage = lazy(() => import('./pages/insurance/ClaimsPage'));
 const ClaimDetail = lazy(() => import('./pages/insurance/ClaimDetail'));
+const ClaimIntimateForm = lazy(() => import('./pages/insurance/ClaimIntimateForm'));
 const EndorsementsPage = lazy(() => import('./pages/insurance/EndorsementsPage'));
 const RenewalsPage = lazy(() => import('./pages/insurance/RenewalsPage'));
 const POSPManagement = lazy(() => import('./pages/insurance/POSPManagement'));
@@ -56,6 +57,7 @@ const ChangePasswordPage = lazy(() => import('./pages/ChangePasswordPage'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage'));
 const UserManagementPage = lazy(() => import('./pages/admin/UserManagementPage'));
 const AuditLogsPage = lazy(() => import('./pages/admin/AuditLogsPage'));
+const DataMigrationPage = lazy(() => import('./pages/admin/DataMigrationPage'));
 
 // Pages - AI Advisory
 const AdvisoryDashboard = lazy(() => import('./pages/advisory/AdvisoryDashboard'));
@@ -118,6 +120,7 @@ function App() {
 
             {/* Insurance Routes - Claims */}
             <Route path="/insurance/claims" element={<ClaimsPage />} />
+            <Route path="/insurance/claims/intimate" element={<ClaimIntimateForm />} />
             <Route path="/insurance/claims/:id" element={<ClaimDetail />} />
 
             {/* Insurance Routes - Quotations */}
@@ -173,6 +176,7 @@ function App() {
             {/* Admin Routes - restricted to SUPER_ADMIN & PRINCIPAL_OFFICER */}
             <Route path="/admin/users" element={<UserManagementPage />} />
             <Route path="/admin/audit-logs" element={<AuditLogsPage />} />
+            <Route path="/admin/data-migration" element={<DataMigrationPage />} />
 
             {/* AI Advisory Routes */}
             <Route path="/advisory" element={<AdvisoryDashboard />} />

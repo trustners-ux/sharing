@@ -37,7 +37,8 @@ const ClaimDetail = () => {
     try {
       setLoading(true);
       const res = await api.get(`/insurance/claims/${id}`);
-      setClaim(res.data);
+      // Interceptor already unwraps { success, data } → data is the claim object
+      setClaim(res);
     } catch (err) {
       setError('Failed to load claim details');
       console.error(err);
@@ -54,7 +55,7 @@ const ClaimDetail = () => {
       };
 
       const res = await api.patch(`/insurance/claims/${id}`, payload);
-      setClaim(res.data);
+      setClaim(res);
       setShowActionModal(false);
       setActionForm({ notes: '', amount: '' });
     } catch (err) {
