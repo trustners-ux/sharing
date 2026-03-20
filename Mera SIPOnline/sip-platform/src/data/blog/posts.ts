@@ -4,6 +4,280 @@ const AUTHOR = { name: 'Trustner Research', role: 'Investment Education Team' };
 
 export const blogPosts: BlogPost[] = [
 
+  // ───────────────────────────── POST 71 ────────────────────────────
+  {
+    id: 'post-071',
+    title: 'Is the Market Giving Us a Buying Signal? What to Do — and What NOT to Do — in This Correction',
+    slug: 'market-buying-signal-march-2026-correction-holding-tenure-sip-strategy',
+    excerpt:
+      'Nifty is down 13% from its highs, FIIs are fleeing, oil is above $112, and fear is everywhere. But the data tells a very different story. Here is why this correction could be the best thing that happened to your portfolio — if you play it right.',
+    author: AUTHOR,
+    date: '2026-03-20',
+    category: 'Market Analysis',
+    readTime: '10 min read',
+    tags: ['market correction 2026', 'buying signal', 'holding tenure', 'SIP during correction', 'Nifty PE ratio', 'FII outflows', 'what not to do market crash', 'mutual fund strategy March 2026'],
+    featured: true,
+    coverGradient: 'from-emerald-800 to-teal-900',
+    content: [
+      {
+        type: 'paragraph',
+        text: 'March 20, 2026. Nifty 50 is hovering around 23,000 — down nearly 13 percent from its all-time high of 26,373 hit just 11 weeks ago. The Sensex has plunged 14 percent from 86,159. Smallcaps are officially in a bear market, down 21.6 percent. India VIX has surged 119 percent this year to 21.84. Brent crude is trading above 112 dollars a barrel. The rupee has weakened past 92.45 to the dollar. FIIs have pulled out over Rs 96,974 crore in FY26. Your portfolio is red, your confidence is shaken, and every instinct is screaming: get out.',
+      },
+      {
+        type: 'paragraph',
+        text: 'But what if this is not a signal to run? What if the market is actually giving you one of the clearest buying signals of the decade? Let us look at the hard data — not emotions, not headlines, not WhatsApp forwards — and find out.',
+      },
+      {
+        type: 'heading',
+        text: 'The 5 Signals That Say "Buy" — Not "Sell"',
+      },
+      {
+        type: 'subheading',
+        text: 'Signal 1: Nifty PE Has Dropped to the "Opportunity Zone"',
+      },
+      {
+        type: 'paragraph',
+        text: 'The Nifty 50 trailing PE ratio has dropped to approximately 20.4 — that is 9.9 percent below the 7-year median PE of 22.74. For context, the PE was above 25 just six months ago when everyone was bullish. In simple terms: Indian large-cap stocks are now cheaper than their average valuation of the last 7 years. This is not a bubble bursting — this is the market coming back to fair value and potentially going below it.',
+      },
+      {
+        type: 'table',
+        rows: [
+          ['Metric', 'Current Value', 'Historical Context'],
+          ['Nifty 50 PE (TTM)', '20.4', '7-year median: 22.74, COVID low: 17.15'],
+          ['Nifty 50 PB Ratio', '3.23', 'Below 5-year average'],
+          ['Dividend Yield', '1.31%', 'Above 5-year average — stocks are cheaper'],
+          ['Nifty IT PE (2yr forward)', '15.4x', 'Lowest in 5+ years — deep value territory'],
+        ],
+      },
+      {
+        type: 'callout',
+        variant: 'tip',
+        text: 'Every single time in the last 20 years that Nifty PE has dropped below its 7-year median, investors who deployed capital at that level earned above-average returns over the next 3 to 5 years. Not sometimes — every time. We are at that level right now.',
+      },
+      {
+        type: 'subheading',
+        text: 'Signal 2: FII Selling Has Reached Extreme Levels — A Contrarian Indicator',
+      },
+      {
+        type: 'paragraph',
+        text: 'Foreign portfolio investors have pulled out a cumulative Rs 96,974 crore in FY26. FPI ownership in NSE-listed companies has fallen to 16.9 percent — the lowest in over 15 years. In March 2026 alone (up to March 10), FIIs sold Rs 33,917 crore. This sounds terrifying. But historically, extreme FII selling has been one of the most reliable contrarian buy signals for Indian markets.',
+      },
+      {
+        type: 'paragraph',
+        text: 'Why? Because when FIIs sell at panic levels, they are transferring ownership of quality Indian companies to domestic investors — mutual funds, insurance companies, retail SIP investors — at discounted prices. When FIIs eventually return (and they always do — India\'s GDP growth story is too compelling to ignore), they buy back at higher prices, pushing markets to new highs.',
+      },
+      {
+        type: 'subheading',
+        text: 'Signal 3: The 76% SIP Stoppage Ratio — The Crowd Is Wrong Again',
+      },
+      {
+        type: 'paragraph',
+        text: 'February 2026 data shows a shocking 76 percent SIP stoppage ratio — for every new SIP started, three were stopped or matured. This is historically one of the strongest contrarian buy signals available. When the majority of retail investors are giving up on SIPs, it means they are surrendering their units at low NAVs. The disciplined investors who continue buying are picking up these units at a discount. When the market recovers, those extra units compound into significantly higher wealth.',
+      },
+      {
+        type: 'callout',
+        variant: 'warning',
+        text: 'In March 2020, SIP stoppage rates also spiked as investors panicked during COVID. The Sensex was at 25,981. Within 18 months, it crossed 60,000 — a 130 percent gain. The investors who stopped their SIPs missed the greatest buying opportunity of the decade. The same pattern is repeating right now.',
+      },
+      {
+        type: 'subheading',
+        text: 'Signal 4: VIX Spike — Fear Is Peaking',
+      },
+      {
+        type: 'paragraph',
+        text: 'India VIX surged from 13.70 on February 27 to 23.97 on March 9 — a 75 percent spike in just 10 days. It currently sits at 21.84. High VIX means high fear. And high fear, historically, has coincided with excellent entry points. Data shows that investing when VIX is above 20 has delivered significantly better 1-year and 3-year returns than investing when VIX is below 15.',
+      },
+      {
+        type: 'subheading',
+        text: 'Signal 5: India\'s Fundamentals Remain Strong',
+      },
+      {
+        type: 'paragraph',
+        text: 'Despite the market turmoil, India\'s GDP growth remains above 6 percent. Corporate earnings growth for Nifty 50 companies is holding at 12 to 14 percent. The banking sector NPA cycle is at a multi-decade low. GST collections continue to grow. And India\'s long-term structural story — rising middle class, digital transformation, manufacturing push, urbanisation — remains intact. The market is correcting not because India\'s economy is broken, but because of external factors: the US-Iran war, oil prices, and global risk-off sentiment. These are temporary. India\'s growth story is structural.',
+      },
+      {
+        type: 'heading',
+        text: 'What Should Be Your Holding Tenure in This Market?',
+      },
+      {
+        type: 'paragraph',
+        text: 'This is the question everyone is asking: "If I invest now, how long should I hold?" The answer depends on your investment vehicle, but the data is unambiguous about the minimum holding period required to turn a correction into wealth.',
+      },
+      {
+        type: 'table',
+        rows: [
+          ['Investment Type', 'Recommended Minimum Holding', 'Why This Duration?'],
+          ['Large-Cap Equity Funds', '5 to 7 years', 'Nifty has never delivered negative returns over any 7-year rolling period in history'],
+          ['Mid-Cap Equity Funds', '7 to 10 years', 'Mid-caps need one full market cycle to deliver superior risk-adjusted returns'],
+          ['Small-Cap Equity Funds', '8 to 10 years', 'Currently down 21.6% — extreme value but needs patience for recovery'],
+          ['Flexi-Cap / Multi-Cap Funds', '5 to 7 years', 'Fund manager flexibility to shift between segments as cycle turns'],
+          ['SIP Investments', '10+ years (never stop)', 'The longer the SIP, the more corrections it captures — each correction adds wealth'],
+          ['Lump Sum at Current Levels', '5 to 7 years', 'Entering at PE 20.4 gives strong probability of 12-15% CAGR over 5 years'],
+        ],
+      },
+      {
+        type: 'callout',
+        variant: 'info',
+        text: 'Historical data from 1990 to 2025 shows that investing in Nifty when PE is between 18 and 22 (where we are now at 20.4) and holding for 5 years has delivered an average CAGR of 13.7 percent. At 7 years, the average rises to 14.2 percent. There has been zero instances of negative returns at these PE levels over a 5-year horizon.',
+      },
+      {
+        type: 'heading',
+        text: 'The 7 Deadly Mistakes: What NOT to Do in a Falling Market',
+      },
+      {
+        type: 'paragraph',
+        text: 'Corrections create more wealth destruction through bad investor behaviour than through actual market losses. Here are the 7 mistakes that will cost you the most — and we are seeing all of them in real time right now.',
+      },
+      {
+        type: 'subheading',
+        text: 'Mistake 1: Stopping or Reducing Your SIP',
+      },
+      {
+        type: 'paragraph',
+        text: 'This is the single most destructive action you can take. When NAV falls 15 percent, your SIP buys 17.6 percent more units at the same instalment. Those extra units will compound for years. Stopping your SIP during a correction is like cancelling your grocery shopping because prices dropped — it makes no sense. The 76 percent SIP stoppage ratio tells us that most investors are making this exact mistake right now. Do not be one of them.',
+      },
+      {
+        type: 'subheading',
+        text: 'Mistake 2: Panic Redemption',
+      },
+      {
+        type: 'paragraph',
+        text: 'Selling your mutual fund units when they are down 15 to 20 percent converts an unrealised (paper) loss into a permanent, real loss. Markets have recovered from every single correction in history — but only for investors who were still invested. Once you sell, you crystallise the loss, pay exit load and taxes, and then face the impossible task of timing your re-entry. Almost nobody gets this right.',
+      },
+      {
+        type: 'subheading',
+        text: 'Mistake 3: Trying to Time the Bottom',
+      },
+      {
+        type: 'paragraph',
+        text: 'You cannot time the bottom. Nobody can. Not fund managers, not analysts, not algorithms. In the COVID crash, the bottom was March 23, 2020 — one single day. If you waited to invest "after things settle down," you missed a 40 percent rally by May. Fidelity\'s research shows that missing just the 10 best trading days in any 20-year period reduces your returns by more than half. Deploy capital systematically through STPs, not through guesswork.',
+      },
+      {
+        type: 'subheading',
+        text: 'Mistake 4: Switching to "Safe" Investments at the Wrong Time',
+      },
+      {
+        type: 'paragraph',
+        text: 'Moving from equity to FDs, gold, or debt funds after a 13 percent correction means you are locking in losses and then earning 6 to 7 percent returns while the equity market recovers 30 to 50 percent. Asset allocation decisions should be made when markets are at highs and things feel euphoric — not during corrections when you are selling low.',
+      },
+      {
+        type: 'subheading',
+        text: 'Mistake 5: Checking Your Portfolio Every Day',
+      },
+      {
+        type: 'paragraph',
+        text: 'Behavioural finance research consistently shows that investors who check their portfolios daily make significantly worse decisions than those who check quarterly. Daily checking amplifies loss aversion — a well-documented cognitive bias where losses feel 2.5 times more painful than equivalent gains feel pleasurable. Delete the app from your home screen. Check once a quarter.',
+      },
+      {
+        type: 'subheading',
+        text: 'Mistake 6: Investing Based on Social Media and News Headlines',
+      },
+      {
+        type: 'paragraph',
+        text: 'Headlines are designed to generate clicks through fear. "Market Crashes 1,000 Points" gets more engagement than "Nifty PE Returns to Fair Value." Social media amplifies panic through echo chambers. Your uncle\'s WhatsApp forward about the "worst crash ever" is not an investment strategy. The data — PE ratios, earnings growth, historical recovery patterns — tells a completely different story from the headlines.',
+      },
+      {
+        type: 'subheading',
+        text: 'Mistake 7: Abandoning Your Financial Plan',
+      },
+      {
+        type: 'paragraph',
+        text: 'If you had a financial plan before this correction, that plan already accounted for market volatility. A 13 percent correction is not exceptional — it is normal. Markets correct 10 percent or more almost every year. In 44 years of Sensex history, the average intra-year drawdown is 20 percent, yet the average annual return is 19 percent. Your plan was designed for this. Trust it.',
+      },
+      {
+        type: 'heading',
+        text: 'What the Smart Money Is Actually Doing Right Now',
+      },
+      {
+        type: 'paragraph',
+        text: 'While retail investors are panicking, here is what informed, data-driven investors are doing in March 2026:',
+      },
+      {
+        type: 'list',
+        items: [
+          'Continuing every SIP without modification — the core habit that builds lasting wealth',
+          'Increasing SIP amounts by 15 to 25 percent to buy more units at lower NAVs — this is the mathematical edge of investing during corrections',
+          'Deploying surplus cash through Systematic Transfer Plans (STPs) — moving money from liquid funds to equity in 6 to 12 monthly tranches to avoid timing risk',
+          'Rebalancing portfolios towards large-cap and flexi-cap funds that recover fastest from corrections, while maintaining small-cap allocation for long-term alpha',
+          'Using the Tax Loss Harvesting opportunity — selling underperforming funds to book capital losses that offset gains in other investments, then reinvesting in similar (not identical) funds',
+          'Topping up ELSS investments for Section 80C benefits — buying tax-saving funds at discounted NAVs gives you both tax savings and better entry points',
+        ],
+      },
+      {
+        type: 'heading',
+        text: 'Why This Correction Is Different from 2008 — In a Good Way',
+      },
+      {
+        type: 'paragraph',
+        text: 'The 2008 crash was triggered by a systemic collapse of the global financial system — banks were failing, credit markets froze, and there was genuine uncertainty about whether the economic system would survive. The current correction is driven by an external geopolitical event (US-Iran conflict) and commodity price shock (oil above 112 dollars). These are fundamentally different.',
+      },
+      {
+        type: 'table',
+        rows: [
+          ['Factor', '2008 Crisis', 'March 2026 Correction'],
+          ['Root Cause', 'Systemic banking collapse', 'Geopolitical conflict + oil spike'],
+          ['Banking System', 'NPAs surging, banks failing', 'Healthiest in 20 years, low NPAs'],
+          ['Corporate Earnings', 'Contracting', 'Growing 12-14% YoY'],
+          ['India GDP Growth', 'Slowed to 3.1%', 'Holding above 6%'],
+          ['Nifty Fall', '~60%', '~13% (so far)'],
+          ['DII Support', 'Minimal', 'Strong — mutual fund SIP book provides steady buying'],
+          ['Correction Type', 'Bear market', 'Healthy correction within a secular bull trend'],
+        ],
+      },
+      {
+        type: 'callout',
+        variant: 'tip',
+        text: 'India\'s mutual fund SIP monthly inflow was around Rs 26,000 crore in early 2026. Even with increased stoppages, this provides a massive domestic demand floor that did not exist in 2008. This is a structural change in Indian markets — DIIs now have the firepower to absorb FII selling, which is why corrections are shallower and recoveries faster than in previous decades.',
+      },
+      {
+        type: 'heading',
+        text: 'Your Action Plan: What to Do This Week',
+      },
+      {
+        type: 'list',
+        items: [
+          'Step 1: Review your existing SIPs. If they are running — do not touch them. If you had paused any, restart them immediately. Every month you miss at these NAV levels costs you future wealth',
+          'Step 2: If you have surplus savings (beyond your emergency fund), start an STP from a liquid fund to a diversified equity fund. Deploy over 6 months. Do not invest lump sum unless you have a 7-year or more horizon',
+          'Step 3: Consider a 10 to 20 percent step-up in your existing SIPs. If you are investing Rs 15,000 per month, increase it to Rs 17,000 or Rs 18,000. Use our Lifeline Planner to model the impact',
+          'Step 4: Review your asset allocation. If your equity allocation has dropped below your target due to the correction, this is a natural rebalancing opportunity. Top up equity to bring it back to target',
+          'Step 5: If you are investing for goals more than 5 years away, add a small allocation to mid-cap and small-cap funds at these beaten-down levels. These segments typically deliver the highest recovery returns',
+          'Step 6: Talk to your mutual fund distributor or financial planner. A 15-minute conversation with data can save you from a decision you will regret for 15 years',
+        ],
+      },
+      {
+        type: 'heading',
+        text: 'The Final Word: Corrections Are the Price of Admission',
+      },
+      {
+        type: 'paragraph',
+        text: 'Markets do not go up in a straight line. Corrections of 10 to 15 percent happen almost every year. They are not a sign that something is broken — they are a healthy, normal feature of markets that creates opportunities for long-term wealth creation. The investors who consistently build wealth through these cycles are not the ones who predict the bottom. They are the ones who show up every month with their SIP, buy more units when prices are low, and refuse to let fear overwrite their financial plan.',
+      },
+      {
+        type: 'paragraph',
+        text: 'Right now, at a Nifty PE of 20.4, with FIIs in full retreat, VIX elevated, and 76 percent of SIP investors giving up — the market is offering you a rare opportunity. The question is not whether the market will recover. It always does. The question is: will you be invested when it does?',
+      },
+      {
+        type: 'quote',
+        text: 'The stock market is a device for transferring money from the impatient to the patient. Right now, the impatient are selling. Be the patient one who is buying. Your future self will thank you.',
+      },
+      {
+        type: 'cta',
+        text: 'Plan Your Next Move with Data, Not Emotions',
+        items: [
+          'Use our SIP Calculator to see how continuing your SIP through this correction accelerates your wealth.',
+          'Try the Correction Impact Calculator to model exactly how much extra wealth this dip adds to your portfolio.',
+          'Or use the FREE Financial Health Assessment to get a personalised action plan for your situation.',
+        ],
+        buttonText: 'Start Your Financial Plan (FREE)',
+        buttonHref: '/financial-planning',
+      },
+      {
+        type: 'disclaimer',
+        text: 'Market data cited in this article is sourced from NSE India, BSE, NSDL FPI reports, Trendlyne, Bloomberg, and other publicly available sources as of March 20, 2026. All figures are approximate and subject to change. This article is for educational and informational purposes only and does not constitute investment advice, a recommendation, or solicitation to buy or sell any securities or mutual fund schemes. Past performance is not indicative of future results. Mutual fund investments are subject to market risks — read all scheme-related documents carefully before investing. Investors should consult a SEBI Registered Investment Adviser or Certified Financial Planner before making investment decisions. Trustner Asset Services Pvt. Ltd. is an AMFI-registered Mutual Fund Distributor (ARN-286886).',
+      },
+    ],
+  },
+
   // ───────────────────────────── POST 62 ────────────────────────────
   {
     id: 'post-062',
