@@ -8,6 +8,7 @@ interface ChatMessage {
   role: 'user' | 'assistant';
   text: string;
   timestamp: string;
+  isTyping?: boolean; // true while typewriter effect is running
 }
 
 const QUICK_TOPICS = [
@@ -18,6 +19,9 @@ const QUICK_TOPICS = [
   'Best Fund Types',
   'SIP for Beginners',
 ];
+
+/* ── Status phases the assistant goes through ── */
+type AssistantPhase = 'idle' | 'thinking' | 'typing';
 
 export function ChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
@@ -31,10 +35,11 @@ export function ChatWidget() {
       timestamp: new Date().toISOString(),
     },
   ]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [phase, setPhase] = useState<AssistantPhase>('idle');
   const [showQuickTopics, setShowQuickTopics] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const typingCancelRef = useRef(false);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsVisible(true), 3000);
@@ -43,7 +48,7 @@ export function ChatWidget() {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, phase]);
 
   // Focus input when chat opens
   useEffect(() => {
@@ -65,9 +70,95 @@ export function ChatWidget() {
     setIsMinimized(false);
   }, []);
 
+  /**
+   * Typewriter effect: reveals the reply character by character.
+   * Uses chunked reveal (2-4 chars at a time) for natural speed.
+   */
+  const typewriterReveal = useCallback(
+    (fullText: string): Promise<void> => {
+      return new Promise((resolve) => {
+        typingCancelRef.current = false;
+
+        // Add a placeholder message that will be progressively filled
+        const placeholderMsg: ChatMessage = {
+          role: 'assistant',
+          text: '',
+          timestamp: new Date().toISOString(),
+          isTyping: true,
+        };
+        setMessages((prev) => [...prev, placeholderMsg]);
+
+        let charIndex = 0;
+        const textLength = fullText.length;
+        // Adaptive speed: shorter texts type slower for realism, long texts faster
+        const baseDelay = textLength > 400 ? 8 : textLength > 200 ? 12 : 18;
+        // Chunk size: reveal 1-4 chars per tick for natural feel
+        const chunkSize = textLength > 400 ? 4 : textLength > 200 ? 3 : 2;
+
+        const tick = () => {
+          if (typingCancelRef.current) {
+            // Cancelled — show full text immediately
+            setMessages((prev) => {
+              const updated = [...prev];
+              const last = updated[updated.length - 1];
+              if (last?.isTyping) {
+                updated[updated.length - 1] = { ...last, text: fullText, isTyping: false };
+              }
+              return updated;
+            });
+            resolve();
+            return;
+          }
+
+          charIndex = Math.min(charIndex + chunkSize, textLength);
+
+          setMessages((prev) => {
+            const updated = [...prev];
+            const last = updated[updated.length - 1];
+            if (last?.isTyping) {
+              updated[updated.length - 1] = {
+                ...last,
+                text: fullText.slice(0, charIndex),
+              };
+            }
+            return updated;
+          });
+
+          if (charIndex >= textLength) {
+            // Done typing — mark as complete
+            setMessages((prev) => {
+              const updated = [...prev];
+              const last = updated[updated.length - 1];
+              if (last?.isTyping) {
+                updated[updated.length - 1] = { ...last, isTyping: false };
+              }
+              return updated;
+            });
+            resolve();
+          } else {
+            // Add natural variation: slight pause at newlines and punctuation
+            const currentChar = fullText[charIndex - 1];
+            let delay = baseDelay;
+            if (currentChar === '\n') delay += 60;
+            else if (currentChar === '.' || currentChar === '!' || currentChar === '?') delay += 30;
+            else if (currentChar === ',') delay += 15;
+            // Small random jitter for human feel
+            delay += Math.random() * 8;
+
+            setTimeout(tick, delay);
+          }
+        };
+
+        // Start first tick
+        setTimeout(tick, 50);
+      });
+    },
+    [],
+  );
+
   const handleSend = async (customMessage?: string) => {
     const msgText = customMessage || message.trim();
-    if (!msgText || isLoading) return;
+    if (!msgText || phase !== 'idle') return;
 
     const userMessage: ChatMessage = {
       role: 'user',
@@ -78,11 +169,14 @@ export function ChatWidget() {
     setMessages((prev) => [...prev, userMessage]);
     setMessage('');
     setShowQuickTopics(false);
-    setIsLoading(true);
+
+    // Phase 1: Thinking (show bouncing dots)
+    setPhase('thinking');
 
     try {
       // Send conversation history for multi-turn AI context
-      const recentHistory = messages.slice(-6).map((m) => ({ role: m.role, text: m.text }));
+      const currentMessages = [...messages, userMessage];
+      const recentHistory = currentMessages.slice(-6).map((m) => ({ role: m.role, text: m.text }));
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -90,26 +184,20 @@ export function ChatWidget() {
       });
 
       const data = await res.json();
+      const replyText = data.reply || 'Sorry, I could not process that. Please try again.';
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: 'assistant',
-          text: data.reply || 'Sorry, I could not process that. Please try again.',
-          timestamp: new Date().toISOString(),
-        },
-      ]);
+      // Phase 2: Typing (typewriter reveal)
+      setPhase('typing');
+
+      // Small delay to transition from "thinking" to "typing" naturally
+      await new Promise((r) => setTimeout(r, 300));
+
+      await typewriterReveal(replyText);
     } catch {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: 'assistant',
-          text: 'Oops! Something went wrong. Please try again or reach us on WhatsApp.',
-          timestamp: new Date().toISOString(),
-        },
-      ]);
+      setPhase('typing');
+      await typewriterReveal('Oops! Something went wrong. Please try again or reach us on WhatsApp: +91-6003903737');
     } finally {
-      setIsLoading(false);
+      setPhase('idle');
     }
   };
 
@@ -134,6 +222,8 @@ export function ChatWidget() {
     return () => document.removeEventListener('keydown', handleEsc);
   }, [isOpen, handleClose]);
 
+  const isBusy = phase !== 'idle';
+
   if (!isVisible) return null;
 
   return (
@@ -150,13 +240,19 @@ export function ChatWidget() {
               <div>
                 <div className="text-sm font-semibold text-white">SIP Assistant</div>
                 <div className="text-[10px] text-teal-200 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block animate-pulse" />
-                  Online &middot; by Mera SIP Online
+                  <span className={cn(
+                    'w-1.5 h-1.5 rounded-full inline-block',
+                    phase === 'typing' ? 'bg-yellow-400 animate-pulse' :
+                    phase === 'thinking' ? 'bg-orange-400 animate-pulse' :
+                    'bg-green-400 animate-pulse'
+                  )} />
+                  {phase === 'thinking' ? 'Thinking...' :
+                   phase === 'typing' ? 'Typing...' :
+                   'Online'} &middot; by Mera SIP Online
                 </div>
               </div>
             </div>
             <div className="flex items-center gap-1">
-              {/* Minimize Button */}
               <button
                 onClick={handleMinimize}
                 className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"
@@ -165,7 +261,6 @@ export function ChatWidget() {
               >
                 <Minimize2 className="w-3.5 h-3.5 text-white" />
               </button>
-              {/* Close Button */}
               <button
                 onClick={handleClose}
                 className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center hover:bg-red-500/60 transition-colors"
@@ -201,6 +296,10 @@ export function ChatWidget() {
                   )}
                 >
                   {msg.text}
+                  {/* Blinking cursor while typing */}
+                  {msg.isTyping && (
+                    <span className="inline-block w-0.5 h-4 bg-brand ml-0.5 align-middle animate-pulse" />
+                  )}
                 </div>
                 {msg.role === 'user' && (
                   <div className="w-6 h-6 rounded-full bg-slate-200 flex items-center justify-center shrink-0 mt-1">
@@ -231,7 +330,8 @@ export function ChatWidget() {
               </div>
             )}
 
-            {isLoading && (
+            {/* Thinking indicator (bouncing dots) — only during "thinking" phase */}
+            {phase === 'thinking' && (
               <div className="flex gap-2 justify-start">
                 <div className="w-6 h-6 rounded-full bg-brand-50 flex items-center justify-center shrink-0 mt-1">
                   <Bot className="w-3.5 h-3.5 text-brand" />
@@ -242,7 +342,7 @@ export function ChatWidget() {
                     <span className="w-1.5 h-1.5 bg-brand rounded-full animate-bounce [animation-delay:150ms]" />
                     <span className="w-1.5 h-1.5 bg-brand rounded-full animate-bounce [animation-delay:300ms]" />
                   </span>
-                  <span className="text-xs">Thinking...</span>
+                  <span className="text-xs text-slate-500">Analyzing your question...</span>
                 </div>
               </div>
             )}
@@ -260,14 +360,14 @@ export function ChatWidget() {
                 onKeyDown={handleKeyDown}
                 placeholder="Ask about SIP, mutual funds, tax..."
                 className="flex-1 text-sm px-3.5 py-2.5 rounded-xl border border-surface-300 focus:outline-none focus:ring-2 focus:ring-brand-200 focus:border-brand bg-surface-100"
-                disabled={isLoading}
+                disabled={isBusy}
               />
               <button
                 onClick={() => handleSend()}
-                disabled={!message.trim() || isLoading}
+                disabled={!message.trim() || isBusy}
                 className={cn(
                   'w-10 h-10 rounded-xl flex items-center justify-center transition-colors shrink-0',
-                  message.trim() && !isLoading
+                  message.trim() && !isBusy
                     ? 'bg-brand text-white hover:bg-brand/90'
                     : 'bg-surface-200 text-slate-400'
                 )}
