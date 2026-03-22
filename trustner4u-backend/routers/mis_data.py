@@ -108,17 +108,40 @@ _FIELD_MAP = {
 }
 
 
+_VALID_COLUMNS = {
+    "mis_gi": {"sl_no","entry_date","month","customer_name","contact_no","company",
+               "policy_no","referred_by","business_closed_by","posp_name","policy_type",
+               "motor_policy_type","sub_type","from_date","to_date","od_premium",
+               "tp_premium","net_premium","status","issued_date","agency_broker",
+               "employee_location"},
+    "mis_health": {"month","date","customer_name","ref_no","product","ped","payment_date",
+                   "premium","remarks","advisor_name","login_mode","payment_method",
+                   "given_by","business_closed_by","posp_name","company_name",
+                   "credit_percent","issued_date","employee_location","status"},
+    "mis_life": {"month","date","customer_name","advisor_name","given_by","closed_by",
+                 "posp_name","policy_no","base_premium","total_premium","payment_type",
+                 "sum_assured","ppt","pt","frequency","type","payment_mode","cash_online",
+                 "product","company","status","issued_date","is_direct","credit_pct"},
+    "mis_mf": {"sl_no","month","transaction_date","can_pan_no","advisor","sales",
+               "client_type","client_name","txn_type","txn_sub_type","folio_number",
+               "scheme_name","amount","sip_date"},
+    "mis_mtd": {"region","manager","name","role","target","sip","ls","gi","life","health",
+                "posp","ftd_new_call","ftd_follow_up","total_business","achievement"},
+}
+
+
 def _convert_row(row: dict, table: str) -> dict:
-    """Convert a frontend row (camelCase) to Supabase row (snake_case)."""
+    """Convert a frontend row (camelCase) to Supabase row (snake_case).
+    Only keeps columns that exist in the DB schema."""
     field_map = _FIELD_MAP.get(table, {})
+    valid = _VALID_COLUMNS.get(table, set())
     converted = {}
     for key, value in row.items():
-        # Skip internal fields
         if key in ("id", "import_id"):
             continue
-        # Use explicit map first, then auto-convert
         new_key = field_map.get(key, _camel_to_snake(key))
-        converted[new_key] = value
+        if new_key in valid:
+            converted[new_key] = value
     return converted
 
 
@@ -126,6 +149,7 @@ def _batch_insert(supabase, table: str, rows: List[dict], import_id: str):
     """Insert rows in batches of BATCH_SIZE, attaching import_id to each row."""
     if not rows:
         return
+    total_inserted = 0
     for i in range(0, len(rows), BATCH_SIZE):
         batch = rows[i : i + BATCH_SIZE]
         converted_batch = []
@@ -133,7 +157,13 @@ def _batch_insert(supabase, table: str, rows: List[dict], import_id: str):
             converted = _convert_row(row, table)
             converted["import_id"] = import_id
             converted_batch.append(converted)
-        supabase.table(table).insert(converted_batch).execute()
+        try:
+            supabase.table(table).insert(converted_batch).execute()
+            total_inserted += len(converted_batch)
+        except Exception as e:
+            logger.error(f"Batch insert failed for {table} batch {i}-{i+BATCH_SIZE}: {e}")
+            raise
+    logger.info(f"Inserted {total_inserted} rows into {table}")
 
 
 def _snake_to_camel(name: str) -> str:
@@ -155,38 +185,41 @@ def _convert_rows_to_camel(rows: list) -> list:
     return result
 
 
-def _fetch_import_data(supabase, import_id: str) -> dict:
-    """Fetch all data tables for a given import_id."""
-    gi = supabase.table("mis_gi").select("*").eq("import_id", import_id).execute()
-    health = supabase.table("mis_health").select("*").eq("import_id", import_id).execute()
-    life = supabase.table("mis_life").select("*").eq("import_id", import_id).execute()
-
-    # MF can be large — paginate with range to fetch all rows
-    mf_rows: list = []
+def _fetch_all_rows(supabase, table: str, import_id: str) -> list:
+    """Fetch ALL rows for a table, paginating in chunks of 1000."""
+    all_rows: list = []
     page = 0
     while True:
         start = page * 1000
         end = start + 999
         chunk = (
-            supabase.table("mis_mf")
+            supabase.table(table)
             .select("*")
             .eq("import_id", import_id)
             .range(start, end)
             .execute()
         )
-        mf_rows.extend(chunk.data)
+        all_rows.extend(chunk.data)
         if len(chunk.data) < 1000:
             break
         page += 1
+    return all_rows
 
-    mtd = supabase.table("mis_mtd").select("*").eq("import_id", import_id).execute()
+
+def _fetch_import_data(supabase, import_id: str) -> dict:
+    """Fetch all data tables for a given import_id (paginated)."""
+    gi = _fetch_all_rows(supabase, "mis_gi", import_id)
+    health = _fetch_all_rows(supabase, "mis_health", import_id)
+    life = _fetch_all_rows(supabase, "mis_life", import_id)
+    mf = _fetch_all_rows(supabase, "mis_mf", import_id)
+    mtd = _fetch_all_rows(supabase, "mis_mtd", import_id)
 
     return {
-        "gi": _convert_rows_to_camel(gi.data),
-        "health": _convert_rows_to_camel(health.data),
-        "life": _convert_rows_to_camel(life.data),
-        "mf": _convert_rows_to_camel(mf_rows),
-        "mtd": _convert_rows_to_camel(mtd.data),
+        "gi": _convert_rows_to_camel(gi),
+        "health": _convert_rows_to_camel(health),
+        "life": _convert_rows_to_camel(life),
+        "mf": _convert_rows_to_camel(mf),
+        "mtd": _convert_rows_to_camel(mtd),
     }
 
 
