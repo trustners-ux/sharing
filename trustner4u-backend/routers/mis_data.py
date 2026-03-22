@@ -58,15 +58,101 @@ class MISImportResponse(BaseModel):
 # Helpers
 # ---------------------------------------------------------------------------
 
+def _camel_to_snake(name: str) -> str:
+    """Convert camelCase to snake_case."""
+    import re
+    s1 = re.sub(r'([A-Z])', r'_\1', name)
+    return s1.lower().lstrip('_')
+
+
+# Map frontend camelCase keys to Supabase snake_case columns per table
+_FIELD_MAP = {
+    "mis_gi": {
+        "slNo": "sl_no", "entryDate": "entry_date", "customerName": "customer_name",
+        "contactNo": "contact_no", "policyNo": "policy_no", "referredBy": "referred_by",
+        "businessClosedBy": "business_closed_by", "pospName": "posp_name",
+        "policyType": "policy_type", "motorPolicyType": "motor_policy_type",
+        "subType": "sub_type", "fromDate": "from_date", "toDate": "to_date",
+        "odPremium": "od_premium", "tpPremium": "tp_premium", "netPremium": "net_premium",
+        "issuedDate": "issued_date", "agencyBroker": "agency_broker",
+        "employeeLocation": "employee_location",
+    },
+    "mis_health": {
+        "customerName": "customer_name", "refNo": "ref_no", "paymentDate": "payment_date",
+        "advisorName": "advisor_name", "loginMode": "login_mode",
+        "paymentMethod": "payment_method", "givenBy": "given_by",
+        "businessClosedBy": "business_closed_by", "pospName": "posp_name",
+        "companyName": "company_name", "creditPercent": "credit_percent",
+        "issuedDate": "issued_date", "employeeLocation": "employee_location",
+    },
+    "mis_life": {
+        "customerName": "customer_name", "advisorName": "advisor_name",
+        "givenBy": "given_by", "closedBy": "closed_by", "pospName": "posp_name",
+        "policyNo": "policy_no", "basePremium": "base_premium",
+        "totalPremium": "total_premium", "paymentType": "payment_type",
+        "sumAssured": "sum_assured", "paymentMode": "payment_mode",
+        "cashOnline": "cash_online", "issuedDate": "issued_date",
+        "isDirect": "is_direct", "creditPct": "credit_pct",
+    },
+    "mis_mf": {
+        "slNo": "sl_no", "transactionDate": "transaction_date",
+        "canPanNo": "can_pan_no", "clientType": "client_type",
+        "clientName": "client_name", "txnType": "txn_type",
+        "txnSubType": "txn_sub_type", "folioNumber": "folio_number",
+        "schemeName": "scheme_name", "sipDate": "sip_date",
+    },
+    "mis_mtd": {
+        "ftdNewCall": "ftd_new_call", "ftdFollowUp": "ftd_follow_up",
+        "totalBusiness": "total_business",
+    },
+}
+
+
+def _convert_row(row: dict, table: str) -> dict:
+    """Convert a frontend row (camelCase) to Supabase row (snake_case)."""
+    field_map = _FIELD_MAP.get(table, {})
+    converted = {}
+    for key, value in row.items():
+        # Skip internal fields
+        if key in ("id", "import_id"):
+            continue
+        # Use explicit map first, then auto-convert
+        new_key = field_map.get(key, _camel_to_snake(key))
+        converted[new_key] = value
+    return converted
+
+
 def _batch_insert(supabase, table: str, rows: List[dict], import_id: str):
     """Insert rows in batches of BATCH_SIZE, attaching import_id to each row."""
     if not rows:
         return
     for i in range(0, len(rows), BATCH_SIZE):
         batch = rows[i : i + BATCH_SIZE]
+        converted_batch = []
         for row in batch:
-            row["import_id"] = import_id
-        supabase.table(table).insert(batch).execute()
+            converted = _convert_row(row, table)
+            converted["import_id"] = import_id
+            converted_batch.append(converted)
+        supabase.table(table).insert(converted_batch).execute()
+
+
+def _snake_to_camel(name: str) -> str:
+    """Convert snake_case to camelCase."""
+    parts = name.split('_')
+    return parts[0] + ''.join(p.capitalize() for p in parts[1:])
+
+
+def _convert_rows_to_camel(rows: list) -> list:
+    """Convert Supabase snake_case rows to camelCase for the frontend."""
+    result = []
+    for row in rows:
+        converted = {}
+        for key, value in row.items():
+            if key in ("id", "import_id"):
+                continue  # Strip internal IDs
+            converted[_snake_to_camel(key)] = value
+        result.append(converted)
+    return result
 
 
 def _fetch_import_data(supabase, import_id: str) -> dict:
@@ -96,11 +182,11 @@ def _fetch_import_data(supabase, import_id: str) -> dict:
     mtd = supabase.table("mis_mtd").select("*").eq("import_id", import_id).execute()
 
     return {
-        "gi": gi.data,
-        "health": health.data,
-        "life": life.data,
-        "mf": mf_rows,
-        "mtd": mtd.data,
+        "gi": _convert_rows_to_camel(gi.data),
+        "health": _convert_rows_to_camel(health.data),
+        "life": _convert_rows_to_camel(life.data),
+        "mf": _convert_rows_to_camel(mf_rows),
+        "mtd": _convert_rows_to_camel(mtd.data),
     }
 
 
