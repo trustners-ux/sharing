@@ -2,6 +2,25 @@ import { MarketCommentary } from '@/types/market';
 
 export const marketCommentaries: MarketCommentary[] = [
   {
+    id: 'week-2026-03-17',
+    title: 'Markets Survive Mid-Week Crash, End Flat as Fed Holds & Hormuz Escalates',
+    date: '2026-03-21',
+    weekRange: 'Mar 15 - Mar 21, 2026',
+    summary:
+      'Markets experienced a rollercoaster week, ending nearly flat despite a devastating mid-week crash. The Nifty 50 closed at 23,115 (-0.16%) and the Sensex at 74,533 (-0.04%). Monday-Tuesday saw a relief rally before March 19 delivered the biggest single-day crash in ~2 years — Sensex plunged 2,497 points (-3.26%) as Saudi Aramco refinery fires pushed Brent to $119.50 intraday, the Fed held rates at 3.50-3.75% with only 1 cut projected for 2026, and HDFC Bank chairman resigned abruptly. FIIs sold ~Rs 29,900 crore this week while DIIs absorbed Rs 30,642 crore. The Rupee hit a new record low of 93.77 against the dollar. Gold crashed 9% on hawkish Fed and strong dollar. Friday saw a partial recovery (+0.49%) led by IT and metals.',
+    keyPoints: [
+      'March 19 was the biggest single-day crash in ~2 years: Sensex plunged 2,497 points (-3.26%), wiping out Rs 12.5 lakh crore in investor wealth. Market breadth collapsed — 481 advances vs. 2,719 declines on NSE. Yet the week ended nearly flat, proving markets self-correct.',
+      'Brent crude touched $119.50 intraday on Saudi Aramco Yanbu refinery fires before settling at $108.84. Oil has risen for 5 consecutive weeks. Strait of Hormuz crisis entered its 3rd week — the largest supply disruption in oil market history per the IEA.',
+      'US Fed held rates at 3.50-3.75% (11-1 vote). Dot plot signals only 1 rate cut in 2026. Inflation forecast raised to 2.7%. This hawkish stance crushed gold (-9% weekly) and pressured emerging market currencies including the Rupee.',
+      'FIIs sold ~Rs 29,900 crore this week — March outflows crossed Rs 88,180 crore, the highest monthly outflow in 2026. CY2026 total: Rs 1.04 lakh crore. DIIs absorbed Rs 30,642 crore, fully offsetting FII selling — structural SIP flows are now the market\'s backbone.',
+      'Rupee breached 93.75 to hit a new all-time low of 93.77 against the dollar, driven by crude above $105, massive FPI outflows, and advance tax dollar demand. HDFC Bank fell 5.1% after part-time chairman Atanu Chakraborty resigned abruptly.',
+      'Sectoral winners: IT (+2.4%), Auto (+2.2%), PSU Banks (+2.0%), Metals (+1.8%). Losers: Defence (-2.4%), Banks (-1.8%). Top gainers: Hero MotoCorp (+4.5%), IndusInd Bank (+3.3%), JSW Steel (+3.3%). Top losers: Eternal/Zomato (-8.6%), HDFC Bank (-5.1%).',
+    ],
+    outlook: 'Bearish',
+    sipAdvice:
+      'This week perfectly illustrates why SIP investors should never panic. The Sensex crashed 2,497 points on Wednesday — and by Friday, the week was nearly flat. Panic sellers on March 19 locked in losses; SIP investors simply accumulated more units at discounted NAVs. DIIs buying Rs 30,642 crore — powered by your SIP flows — fully absorbed FII selling of Rs 29,900 crore. Your monthly SIP is literally the market\'s structural floor. When oil shocks, Fed decisions, and geopolitical crises create fear, your SIP works hardest. Continue without interruption. If you have surplus cash, consider a one-time top-up to maximize rupee cost averaging during this volatility.',
+  },
+  {
     id: 'week-2026-03-10',
     title: 'Worst Week in 4 Years: Sensex Crashes 5%, Oil Surge & FII Exodus Hammer Markets',
     date: '2026-03-13',
