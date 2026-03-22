@@ -287,6 +287,29 @@ async def import_mis_data(payload: MISImportRequest):
         raise HTTPException(status_code=500, detail=f"Import failed: {str(e)}")
 
 
+class AppendRequest(BaseModel):
+    table: str
+    rows: List[Dict[str, Any]] = []
+
+
+@router.post("/import/{import_id}/append")
+async def append_rows(import_id: str, payload: AppendRequest):
+    """Append additional rows to an existing import (for chunked uploads)."""
+    TABLE_MAP = {"gi": "mis_gi", "health": "mis_health", "life": "mis_life", "mf": "mis_mf", "mtd": "mis_mtd"}
+    try:
+        table = TABLE_MAP.get(payload.table)
+        if not table:
+            raise HTTPException(status_code=400, detail=f"Invalid table: {payload.table}")
+        sb = get_supabase()
+        _batch_insert(sb, table, payload.rows, import_id)
+        return {"status": "ok", "appended": len(payload.rows)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Append failed for {payload.table}")
+        raise HTTPException(status_code=500, detail=f"Append failed: {str(e)}")
+
+
 @router.get("/data")
 async def get_mis_data(month: str, year: str):
     """Return all MIS data for a given month/year."""
