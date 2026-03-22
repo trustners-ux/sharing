@@ -199,47 +199,15 @@ function scrapePlanSummary(element: HTMLElement): {
       }
     });
 
-    // Capture step-up / increment toggle info from this event card
-    // Method 1: Check for toggle switch with aria-checked="true"
-    const toggleSwitches = el.querySelectorAll('[role="switch"]');
-    toggleSwitches.forEach((sw) => {
-      if (sw.getAttribute('aria-checked') !== 'true') return;
-
-      // Walk up to find the border-t section that contains the toggle
-      const toggleSection = sw.closest('div.border-t, [class*="border-t"]');
-      if (!toggleSection) return;
-
-      // Find the active mode button (percentage vs amount) - works for both emerald (SIP) and amber (SWP)
-      const activeBtn = toggleSection.querySelector('button.bg-emerald-500, button.bg-amber-500');
-      const modeText = activeBtn?.textContent?.trim() || '';
-
-      // Determine label from context: "Annual Step-Up" for SIP, "Annual Increment" for SWP
-      const toggleLabel = toggleSection.querySelector('label')?.textContent?.trim() || 'Annual Step-Up';
-
-      // Find the value input for the step-up
-      const stepLabels = toggleSection.querySelectorAll('label');
-      let captured = false;
-      stepLabels.forEach((sl) => {
-        if (captured) return;
-        const slText = sl.textContent?.trim() || '';
-        if (slText.toLowerCase().includes('increase') || slText.toLowerCase().includes('step') || slText.toLowerCase().includes('increment')) {
-          const slWrapper = sl.closest('div');
-          const slInp = slWrapper?.querySelector('input[type="text"]') as HTMLInputElement | null;
-          if (slInp?.value) {
-            const slPrefix = slWrapper?.querySelector('.pl-3.pr-1')?.textContent || '';
-            const slSuffix = slWrapper?.querySelector('.pr-2.text-sm')?.textContent || '';
-            const modeLabel = modeText === '+%' ? 'Percentage' : modeText === '+₹' ? 'Amount' : 'Annual';
-            details.push(`${toggleLabel} (${modeLabel}): ${slPrefix}${slInp.value}${slSuffix ? ' ' + slSuffix : ''}`);
-            captured = true;
-          }
-        }
-      });
-
-      // Fallback: if no label found but toggle is on, just note it's enabled
-      if (!captured) {
-        details.push(`${toggleLabel}: Enabled`);
-      }
-    });
+    // Capture step-up / increment toggle info from data attributes (reliable method)
+    const stepUpAttr = el.getAttribute('data-pdf-stepup');
+    if (stepUpAttr) {
+      details.push(stepUpAttr);
+    }
+    const incrementAttr = el.getAttribute('data-pdf-increment');
+    if (incrementAttr) {
+      details.push(incrementAttr);
+    }
 
     events.push({
       type: typeName,

@@ -163,7 +163,10 @@ export default function LifelineCalculatorPage() {
                     const maxDuration = planningHorizon - ev.startYear + 1;
 
                     return (
-                      <div key={ev.id} className={cn('rounded-xl border p-3 sm:p-4 transition-all', style.border, style.bg)}>
+                      <div key={ev.id} className={cn('rounded-xl border p-3 sm:p-4 transition-all', style.border, style.bg)}
+                        data-pdf-stepup={ev.type === 'sip' && ev.stepUpEnabled ? `Annual Step-Up (${ev.stepUpType === 'percentage' ? 'Percentage' : 'Amount'}): ${ev.stepUpType === 'amount' ? '₹' : ''}${ev.stepUpValue ?? 10}${ev.stepUpType === 'percentage' ? '%' : ''}` : undefined}
+                        data-pdf-increment={ev.type === 'swp' && ev.incrementEnabled ? `Annual Increment (${ev.incrementType === 'percentage' ? 'Percentage' : 'Amount'}): ${ev.incrementType === 'amount' ? '₹' : ''}${ev.incrementValue ?? 5}${ev.incrementType === 'percentage' ? '%' : ''}` : undefined}
+                      >
                         {/* Header Row */}
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2">
