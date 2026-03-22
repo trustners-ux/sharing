@@ -9,6 +9,7 @@ import { WhatsAppButton } from '@/components/sections/WhatsAppButton';
 import { ChatWidget } from '@/components/sections/ChatWidget';
 import { LeadCaptureModal } from '@/components/sections/LeadCaptureModal';
 import { FloatingInvestCTA } from '@/components/sections/FloatingInvestCTA';
+import { ContentProtection } from '@/components/security/ContentProtection';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -135,6 +136,7 @@ export default function RootLayout({
       <body className="font-sans antialiased bg-surface-100 text-primary-700">
         <GoogleAnalytics />
         <PageTracker />
+        <ContentProtection />
         <Header />
         <main className="min-h-screen pt-24 lg:pt-[104px]">
           {children}

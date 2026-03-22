@@ -39,9 +39,27 @@ function getRequiredRole(pathname: string): AdminRole | null {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Only protect /admin routes (except /admin/login)
+  // --- Content Protection Headers for all public pages ---
   if (!pathname.startsWith('/admin') && !pathname.startsWith('/api/admin')) {
-    return NextResponse.next();
+    const response = NextResponse.next();
+
+    // Prevent embedding in iframes (anti-cloning)
+    response.headers.set('X-Frame-Options', 'SAMEORIGIN');
+    response.headers.set('Content-Security-Policy', "frame-ancestors 'self'");
+
+    // Prevent MIME sniffing
+    response.headers.set('X-Content-Type-Options', 'nosniff');
+
+    // Referrer policy
+    response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+    // Permissions policy - restrict what features can be used
+    response.headers.set(
+      'Permissions-Policy',
+      'camera=(), microphone=(), geolocation=(self), interest-cohort=()'
+    );
+
+    return response;
   }
 
   // Allow login page, forgot-password page, and auth API routes
@@ -93,5 +111,11 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/api/admin/:path*'],
+  matcher: [
+    // Admin routes
+    '/admin/:path*',
+    '/api/admin/:path*',
+    // Public pages (for security headers)
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js)).*)',
+  ],
 };
