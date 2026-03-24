@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
-import type { FinancialPlanningData } from '@/types/financial-planning';
+import type { FinancialPlanningData, FinancialHealthReport } from '@/types/financial-planning';
 import {
   calculateFinancialHealthScore,
   calculateNetWorth,
@@ -8,6 +8,14 @@ import {
   generateTeaserData,
   generateFullReport,
 } from '@/lib/utils/financial-planning-calc';
+import { addLead } from '@/lib/admin/leads-store';
+import { generateClaudeNarrative } from '@/lib/utils/claude-narrative';
+import { generateFinancialReport } from '@/lib/utils/financial-planning-pdf';
+import { createReportQueueEntry } from '@/lib/admin/report-queue-store';
+import { buildAdminReviewNotificationHTML } from '@/lib/utils/report-email-builders';
+import { Resend } from 'resend';
+
+export const maxDuration = 60; // Allow up to 60s for full report generation
 
 const getSecret = () => new TextEncoder().encode(process.env.JWT_SECRET || 'dev-secret-change-in-production');
 
@@ -21,7 +29,6 @@ export async function POST(request: Request) {
       try {
         await jwtVerify(token, getSecret());
       } catch {
-        // In development, allow without valid token
         if (process.env.NODE_ENV !== 'development') {
           return NextResponse.json({ error: 'Session expired. Please start over.' }, { status: 401 });
         }
@@ -35,29 +42,32 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid questionnaire data' }, { status: 400 });
     }
 
-    // Run all calculations
+    const userName = data.personalProfile.fullName;
+    const userEmail = data.personalProfile.email;
+    const userPhone = data.personalProfile.phone || '';
+
+    console.log(`[FP Submit] Starting for ${userName} (${userEmail})`);
+
+    // Step 1: Run all calculations
     const score = calculateFinancialHealthScore(data);
     const netWorth = calculateNetWorth(data);
     const retirementGap = calculateRetirementGap(data);
+    const baseReport = generateFullReport(data);
+    const teaser = generateTeaserData(data, { ...baseReport, claudeNarrative: '' });
 
-    // Generate full report (minus Claude narrative)
-    const report = generateFullReport(data);
+    console.log(`[FP Submit] Score: ${score.totalScore}/900 (${score.grade})`);
 
-    // Generate teaser data for the client
-    const teaser = generateTeaserData(data, { ...report, claudeNarrative: '' });
-
-    // Store lead via existing leads system
+    // Step 2: Capture lead directly (using Vercel Blob — persistent)
     try {
-      const leadPayload = {
-        name: data.personalProfile.fullName,
-        phone: data.personalProfile.phone,
-        email: data.personalProfile.email,
+      await addLead({
+        name: userName,
+        phone: userPhone,
+        email: userEmail,
         goal: 'Financial Planning',
         source: 'financial-planning',
-        riskProfile: data.riskProfile.riskCategory,
-        riskScore: data.riskProfile.riskScore,
+        riskProfile: data.riskProfile?.riskCategory,
+        riskScore: data.riskProfile?.riskScore,
         step: 'completed',
-        status: 'new',
         metadata: {
           score: score.totalScore,
           grade: score.grade,
@@ -67,55 +77,105 @@ export async function POST(request: Request) {
             ? (data.personalProfile.otherCity || 'Other')
             : (data.personalProfile.city || '-'),
         },
-      };
-
-      // Call internal lead API
-      const baseUrl = process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : 'http://localhost:3000';
-
-      await fetch(`${baseUrl}/api/lead`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(leadPayload),
-      }).catch(() => {
-        // Don't block if lead capture fails
-        console.error('Lead capture failed, continuing...');
       });
-    } catch {
-      // Non-critical: don't fail the submission if lead capture errors
-      console.error('Lead capture error');
+      console.log(`[FP Submit] Lead captured for ${userName}`);
+    } catch (leadErr) {
+      console.error('[FP Submit] Lead capture failed:', leadErr);
+      // Non-critical — continue with report generation
     }
 
-    // Fire-and-forget: trigger full report generation (Claude AI + PDF + email)
+    // Step 3: Generate Claude narrative (with fallback to demo)
+    let narrative = '';
     try {
-      const baseUrl = process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : 'http://localhost:3000';
-
-      fetch(`${baseUrl}/api/financial-planning/generate-report`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          data,
-          userName: data.personalProfile.fullName,
-          userEmail: data.personalProfile.email,
-        }),
-      }).catch((err) => {
-        console.error('[FP] Report generation trigger failed:', err);
-      });
-    } catch {
-      console.error('[FP] Failed to trigger report generation');
+      narrative = await generateClaudeNarrative(baseReport, data, userName);
+      console.log(`[FP Submit] Narrative generated (${narrative.length} chars)`);
+    } catch (narErr) {
+      console.error('[FP Submit] Narrative generation failed:', narErr);
+      narrative = 'Your personalized financial narrative will be added by our team during review.';
     }
+
+    const report: FinancialHealthReport = { ...baseReport, claudeNarrative: narrative };
+
+    // Step 4: Generate PDF
+    let pdfBuffer: Buffer | null = null;
+    try {
+      pdfBuffer = generateFinancialReport(report, data, userName);
+      console.log(`[FP Submit] PDF generated (${(pdfBuffer.length / 1024).toFixed(0)}KB)`);
+    } catch (pdfErr) {
+      console.error('[FP Submit] PDF generation failed:', pdfErr);
+      // Continue without PDF — admin can regenerate later
+    }
+
+    // Step 5: Store in Vercel Blob queue for admin review
+    let reportId = '';
+    try {
+      const pillars = report.score.pillars;
+      const queueEntry = await createReportQueueEntry(
+        {
+          userName,
+          userEmail,
+          userPhone,
+          userAge: data.personalProfile.age || 30,
+          userCity: data.personalProfile.city === 'other'
+            ? (data.personalProfile.otherCity || 'Other')
+            : (data.personalProfile.city || '-'),
+          riskCategory: data.riskProfile?.riskCategory || '-',
+          totalScore: report.score.totalScore,
+          grade: report.score.grade,
+          netWorth: report.netWorth.netWorth,
+          pillarScores: {
+            cashflow: { score: pillars.cashflow.score, grade: pillars.cashflow.grade },
+            protection: { score: pillars.protection.score, grade: pillars.protection.grade },
+            investments: { score: pillars.investments.score, grade: pillars.investments.grade },
+            debt: { score: pillars.debt.score, grade: pillars.debt.grade },
+            retirementReadiness: { score: pillars.retirementReadiness.score, grade: pillars.retirementReadiness.grade },
+          },
+          topActions: report.actionPlan.slice(0, 5).map(a => `[${a.impact}] ${a.action}`),
+          claudeNarrative: narrative,
+        },
+        pdfBuffer || Buffer.from('PDF generation pending'),
+        data
+      );
+      reportId = queueEntry.id;
+      console.log(`[FP Submit] Queued for review: ${reportId}`);
+    } catch (queueErr) {
+      console.error('[FP Submit] CRITICAL — Failed to queue report:', queueErr);
+      // This is critical — report will be lost. Return error so user knows.
+      return NextResponse.json({
+        success: false,
+        error: 'Report could not be saved. Please try again or contact us on WhatsApp: +91-6003903737',
+        teaser, // Still show teaser so user sees their score
+      }, { status: 500 });
+    }
+
+    // Step 6: Send admin notification email
+    try {
+      if (process.env.RESEND_API_KEY) {
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        await resend.emails.send({
+          from: 'Mera SIP Online <leads@merasip.com>',
+          to: 'wecare@merasip.com',
+          subject: `[Review Required] Financial Report: ${userName} — Score: ${report.score.totalScore}/900`,
+          html: buildAdminReviewNotificationHTML(userName, userEmail, userPhone, report, data, reportId),
+        });
+        console.log('[FP Submit] Admin notification sent');
+      }
+    } catch (emailErr) {
+      console.error('[FP Submit] Admin notification failed:', emailErr);
+      // Non-critical — report is already in queue, admin will see it
+    }
+
+    console.log(`[FP Submit] ✅ Complete for ${userName} — Report ID: ${reportId}`);
 
     return NextResponse.json({
       success: true,
       teaser,
-      userName: data.personalProfile.fullName,
-      userEmail: data.personalProfile.email,
+      reportId,
+      userName,
+      userEmail,
     });
   } catch (error) {
-    console.error('Financial planning submit error:', error);
+    console.error('[FP Submit] Fatal error:', error);
     return NextResponse.json(
       { error: 'Failed to process your assessment. Please try again.' },
       { status: 500 }
