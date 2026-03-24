@@ -116,9 +116,7 @@ export async function POST(request: Request) {
     // Step 4: Generate PDF
     let pdfBuffer: Buffer | null = null;
     try {
-      // Pass tier + comprehensive data if the function supports it (Phase 3 update)
-      // For now, the base 3-arg signature still works for basic/standard
-      pdfBuffer = generateFinancialReport(report, data, userName);
+      pdfBuffer = generateFinancialReport(report, data, userName, tier, cashflowProjection, allocationMatrix);
       console.log(`[FP Submit] PDF generated (${(pdfBuffer.length / 1024).toFixed(0)}KB)`);
     } catch (pdfErr) {
       console.error('[FP Submit] PDF generation failed:', pdfErr);
