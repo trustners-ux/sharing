@@ -3,192 +3,231 @@
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import {
-  ArrowLeft, IndianRupee, Calendar, TrendingUp, Wallet,
-  Lightbulb, Droplets, PiggyBank, BarChart3, ArrowRightLeft,
-  ChevronDown, ChevronUp, Settings2, Target, Clock, Banknote,
-  AlertTriangle, CheckCircle2, Info, RefreshCcw, ArrowRight, Trash2,
+  ArrowLeft, Droplets, Plus, Trash2, TrendingUp, TrendingDown,
+  ShieldCheck, Wallet, PiggyBank, ArrowRightLeft, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend, BarChart, Bar, ComposedChart, Line, ReferenceLine,
+  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
 import { calculateBucketStrategy } from '@/lib/utils/bucket-strategy-calc';
-import type { BucketStrategyInputs, BucketInsight, RetirementIncomeSource, LumpsumEvent } from '@/lib/utils/bucket-strategy-calc';
-import { formatINR } from '@/lib/utils/formatters';
+import type {
+  BucketInputs, BucketInsight, CorpusSource as EngineCorpusSource, RegularIncome as EngineRegularIncome, LumpsumEvent as EngineLumpsumEvent,
+} from '@/lib/utils/bucket-strategy-calc';
+import { formatINR, formatNumber } from '@/lib/utils/formatters';
 import { cn } from '@/lib/utils/cn';
 import { DISCLAIMER } from '@/lib/constants/company';
 import NumberInput from '@/components/ui/NumberInput';
 import DownloadPDFButton from '@/components/ui/DownloadPDFButton';
 import PersonalInfoBar from '@/components/ui/PersonalInfoBar';
 
-// ── Bucket Color Map ──
-const BUCKET_STYLES = [
-  { border: 'border-red-500', bg: 'bg-red-50', text: 'text-red-700', badge: 'bg-red-500', badgeText: 'text-white', ring: 'ring-red-200', fill: '#EF4444', light: '#FEF2F2' },
-  { border: 'border-blue-500', bg: 'bg-blue-50', text: 'text-blue-700', badge: 'bg-blue-500', badgeText: 'text-white', ring: 'ring-blue-200', fill: '#3B82F6', light: '#EFF6FF' },
-  { border: 'border-purple-500', bg: 'bg-purple-50', text: 'text-purple-700', badge: 'bg-purple-500', badgeText: 'text-white', ring: 'ring-purple-200', fill: '#8B5CF6', light: '#F5F3FF' },
-  { border: 'border-amber-500', bg: 'bg-amber-50', text: 'text-amber-700', badge: 'bg-amber-500', badgeText: 'text-white', ring: 'ring-amber-200', fill: '#F59E0B', light: '#FFFBEB' },
-  { border: 'border-emerald-500', bg: 'bg-emerald-50', text: 'text-emerald-700', badge: 'bg-emerald-500', badgeText: 'text-white', ring: 'ring-emerald-200', fill: '#10B981', light: '#ECFDF5' },
+// ── Constants ──────────────────────────────────────
+
+type CorpusSourceType = 'EPF' | 'PPF' | 'Gratuity' | 'NPS Lumpsum' | 'Insurance Maturity' | 'FD' | 'Mutual Funds' | 'ESOP' | 'Savings' | 'Other';
+const SOURCE_TYPES: CorpusSourceType[] = ['EPF', 'PPF', 'Gratuity', 'NPS Lumpsum', 'Insurance Maturity', 'FD', 'Mutual Funds', 'ESOP', 'Savings', 'Other'];
+
+type IncomeType = 'pension' | 'nps' | 'scss' | 'swp' | 'rental' | 'epf_pension' | 'other';
+const INCOME_TYPES: { key: IncomeType; label: string }[] = [
+  { key: 'pension', label: 'Pension' },
+  { key: 'nps', label: 'NPS Annuity' },
+  { key: 'scss', label: 'SCSS' },
+  { key: 'swp', label: 'SWP' },
+  { key: 'rental', label: 'Rental' },
+  { key: 'epf_pension', label: 'EPF Pension' },
+  { key: 'other', label: 'Other' },
 ];
 
-const PIE_COLORS = ['#EF4444', '#3B82F6', '#8B5CF6', '#F59E0B', '#10B981'];
+interface CorpusSource { id: number; type: CorpusSourceType; label: string; amount: number }
+interface RegularIncome { id: number; type: IncomeType; label: string; monthlyAmount: number; growthRate: number }
+interface LumpsumEventUI { id: number; type: 'invest' | 'withdraw'; label: string; amount: number; atAge: number }
+
+const BUCKET_STYLES = [
+  { label: 'Emergency', color: '#10B981', bg: 'bg-emerald-50', border: 'border-emerald-300', text: 'text-emerald-700', fill: '#10B981' },
+  { label: 'Short-Term', color: '#14B8A6', bg: 'bg-teal-50', border: 'border-teal-300', text: 'text-teal-700', fill: '#14B8A6' },
+  { label: 'Medium-Term', color: '#F59E0B', bg: 'bg-amber-50', border: 'border-amber-300', text: 'text-amber-700', fill: '#F59E0B' },
+  { label: 'Growth', color: '#8B5CF6', bg: 'bg-purple-50', border: 'border-purple-300', text: 'text-purple-700', fill: '#8B5CF6' },
+  { label: 'Equity', color: '#EF4444', bg: 'bg-red-50', border: 'border-red-300', text: 'text-red-700', fill: '#EF4444' },
+];
+
+const INSIGHT_STYLES: Record<BucketInsight['type'], { bg: string; border: string; text: string }> = {
+  positive: { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-800' },
+  warning: { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-800' },
+  critical: { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-800' },
+  tip: { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-800' },
+};
+
+function fmtLakhs(v: number): string {
+  if (v >= 10000000) return `${(v / 10000000).toFixed(2)} Cr`;
+  if (v >= 100000) return `${(v / 100000).toFixed(1)} L`;
+  if (v >= 1000) return `${(v / 1000).toFixed(0)}K`;
+  return formatNumber(Math.round(v));
+}
+
+// ── Page Component ──────────────────────────────────
 
 export default function BucketStrategyPage() {
-  // ── State ──
-  const [investorName, setInvestorName] = useState('');
+  // Section 1: Client Details
+  const [clientName, setClientName] = useState('');
+  const [clientAge, setClientAge] = useState<number | null>(null);
   const [currentAge, setCurrentAge] = useState(55);
   const [retirementAge, setRetirementAge] = useState(60);
   const [lifeExpectancy, setLifeExpectancy] = useState(85);
-  const [monthlyExpenses, setMonthlyExpenses] = useState(100000);
+  const [monthlyExpenses, setMonthlyExpenses] = useState(50000);
+  const [inflationRate, setInflationRate] = useState(5);
 
-  // Return assumptions
+  // Section 2: Corpus Sources
+  const [corpusSources, setCorpusSources] = useState<CorpusSource[]>([
+    { id: 1, type: 'EPF', label: 'EPF', amount: 2000000 },
+    { id: 2, type: 'PPF', label: 'PPF', amount: 1000000 },
+    { id: 3, type: 'Gratuity', label: 'Gratuity', amount: 1000000 },
+    { id: 4, type: 'Mutual Funds', label: 'Mutual Funds', amount: 1500000 },
+  ]);
+  const [nextCorpusId, setNextCorpusId] = useState(5);
+
+  // Section 3: Regular Income
+  const [incomes, setIncomes] = useState<RegularIncome[]>([
+    { id: 1, type: 'pension', label: 'Pension', monthlyAmount: 25000, growthRate: 0 },
+  ]);
+  const [nextIncomeId, setNextIncomeId] = useState(2);
+
+  // Section 4: Lumpsum Events
+  const [lumpsumEvents, setLumpsumEvents] = useState<LumpsumEventUI[]>([]);
+  const [nextLumpsumId, setNextLumpsumId] = useState(1);
+
+  // Section 5: Scenario Tuning
+  const [overrideHHE, setOverrideHHE] = useState(false);
+  const [retirementHHE, setRetirementHHE] = useState(0);
+  const [wantsLegacy, setWantsLegacy] = useState(false);
+  const [legacyPercent, setLegacyPercent] = useState(5);
   const [customReturns, setCustomReturns] = useState(false);
   const [liquidReturn, setLiquidReturn] = useState(5);
   const [debtReturn, setDebtReturn] = useState(7);
   const [assetAllocationReturn, setAssetAllocationReturn] = useState(10);
   const [equityReturn, setEquityReturn] = useState(12);
-  const [inflationRate, setInflationRate] = useState(6);
 
-  // Corpus inputs
-  const [hasLumpsum, setHasLumpsum] = useState(true);
-  const [lumpsumCorpus, setLumpsumCorpus] = useState(20000000);
-  // Income sources
-  const [incomeSources, setIncomeSources] = useState<RetirementIncomeSource[]>([]);
+  // UI State
+  const [showYearlyTable, setShowYearlyTable] = useState(false);
 
-  // Pre-retirement
-  const [existingSavings, setExistingSavings] = useState(0);
-  const [preRetirementReturn, setPreRetirementReturn] = useState(12);
-  const [showCurrentSavings, setShowCurrentSavings] = useState(false);
-  const [monthlySavings, setMonthlySavings] = useState(50000);
-
-  // Legacy
-  const [wantsLegacy, setWantsLegacy] = useState(false);
-  const [legacyPercent, setLegacyPercent] = useState(5);
-
-  // Lumpsum events during retirement
-  const [lumpsumEvents, setLumpsumEvents] = useState<LumpsumEvent[]>([]);
-  let lumpsumEventId = lumpsumEvents.length;
-
-  // UI state
-  const [showYearlyDetails, setShowYearlyDetails] = useState(false);
-  const [showEducation, setShowEducation] = useState(false);
+  // ── Derived Values ──
 
   const yearsToRetirement = Math.max(retirementAge - currentAge, 0);
-  const showPreRetirement = yearsToRetirement > 0 || (!hasLumpsum || lumpsumCorpus === 0);
+  const totalCorpus = corpusSources.reduce((s, c) => s + c.amount, 0);
+  const totalMonthlyIncome = incomes.reduce((s, i) => s + i.monthlyAmount, 0);
 
-  // ── Income Source Helpers ──
-  const addIncomeSource = (type: RetirementIncomeSource['type']) => {
-    const defaults: Record<RetirementIncomeSource['type'], Partial<RetirementIncomeSource>> = {
-      pension: { label: 'Employer Pension', monthlyAmount: 25000, growthRate: 0 },
-      rental: { label: 'Rental Income', monthlyAmount: 20000, growthRate: 5 },
-      scss: { label: 'SCSS Interest', monthlyAmount: 10000, growthRate: 0, endYear: 5 },
-      nps: { label: 'NPS Annuity', monthlyAmount: 15000, growthRate: 0 },
-      swp: { label: 'SWP from MF', monthlyAmount: 30000, growthRate: 0 },
-      epf_pension: { label: 'EPF Pension (EPS-95)', monthlyAmount: 7500, growthRate: 0 },
-      other: { label: 'Other Income', monthlyAmount: 10000, growthRate: 0 },
-    };
-    const d = defaults[type];
-    setIncomeSources(prev => [...prev, {
-      type,
-      label: d.label || type,
-      monthlyAmount: d.monthlyAmount || 10000,
-      startYear: 0,
-      growthRate: d.growthRate ?? 0,
-      ...d,
-    }]);
+  const autoHHE = useMemo(() => {
+    return Math.round(monthlyExpenses * Math.pow(1 + inflationRate / 100, yearsToRetirement));
+  }, [monthlyExpenses, inflationRate, yearsToRetirement]);
+
+  // Sync auto-calculated HHE when override is off
+  const effectiveHHE = overrideHHE ? retirementHHE : autoHHE;
+
+  // When user turns on override, pre-fill with auto value
+  const handleOverrideToggle = () => {
+    if (!overrideHHE) setRetirementHHE(autoHHE);
+    setOverrideHHE(!overrideHHE);
   };
 
-  const updateIncomeSource = (index: number, updates: Partial<RetirementIncomeSource>) => {
-    setIncomeSources(prev => prev.map((s, i) => i === index ? { ...s, ...updates } : s));
-  };
+  const lumpsumNetImpact = lumpsumEvents.reduce((s, e) => s + (e.type === 'invest' ? e.amount : -e.amount), 0);
 
-  const removeIncomeSource = (index: number) => {
-    setIncomeSources(prev => prev.filter((_, i) => i !== index));
-  };
+  // ── Income Sources for Engine ──
 
-  // ── Calculation ──
+  const engineIncomeSources: EngineRegularIncome[] = useMemo(() => {
+    return incomes
+      .filter(i => i.monthlyAmount > 0)
+      .map(i => ({
+        id: String(i.id),
+        type: i.type as EngineRegularIncome['type'],
+        label: i.label,
+        monthlyAmount: i.monthlyAmount,
+        growthRate: i.growthRate,
+      }));
+  }, [incomes]);
+
+  const engineLumpsumEvents: EngineLumpsumEvent[] = useMemo(() => {
+    return lumpsumEvents
+      .filter(e => e.amount > 0)
+      .map(e => ({ id: String(e.id), type: e.type as EngineLumpsumEvent['type'], label: e.label, amount: e.amount, atAge: e.atAge }));
+  }, [lumpsumEvents]);
+
+  // ── Engine Calculation ──
+
   const result = useMemo(() => {
-    const inputs: BucketStrategyInputs = {
+    const inputs: BucketInputs = {
+      clientName: clientName || 'Client',
       currentAge,
       retirementAge,
       lifeExpectancy,
-      monthlyExpenses,
+      currentMonthlyHHE: monthlyExpenses,
+      retirementHHE: overrideHHE ? retirementHHE : undefined,
       inflationRate,
       liquidReturn: customReturns ? liquidReturn : 5,
       debtReturn: customReturns ? debtReturn : 7,
-      assetAllocationReturn: customReturns ? assetAllocationReturn : 10,
+      balancedReturn: customReturns ? assetAllocationReturn : 10,
       equityReturn: customReturns ? equityReturn : 12,
-      lumpsumCorpus: hasLumpsum ? lumpsumCorpus : 0,
-      additionalMonthlyIncome: incomeSources.reduce((sum, s) => sum + s.monthlyAmount, 0),
-      incomeSources,
-      existingInvestments: existingSavings,
-      preRetirementReturn,
-      currentMonthlySavings: showCurrentSavings ? monthlySavings : 0,
-      lumpsumEvents: lumpsumEvents.length > 0 ? lumpsumEvents : undefined,
+      corpusSources: corpusSources.filter(c => c.amount > 0).map(c => ({
+        id: String(c.id), type: c.type as EngineCorpusSource['type'], label: c.label, amount: c.amount,
+      })),
+      regularIncome: engineIncomeSources,
+      lumpsumEvents: engineLumpsumEvents,
+      wantsLegacy,
       legacyPercent: wantsLegacy ? legacyPercent : 0,
     };
     return calculateBucketStrategy(inputs);
   }, [
-    currentAge, retirementAge, lifeExpectancy, monthlyExpenses, inflationRate,
-    customReturns, liquidReturn, debtReturn, assetAllocationReturn, equityReturn,
-    wantsLegacy, legacyPercent,
-    hasLumpsum, lumpsumCorpus, incomeSources,
-    existingSavings, preRetirementReturn, showCurrentSavings, monthlySavings,
-    lumpsumEvents,
+    clientName, currentAge, retirementAge, lifeExpectancy, monthlyExpenses, inflationRate,
+    overrideHHE, retirementHHE, customReturns, liquidReturn, debtReturn,
+    assetAllocationReturn, equityReturn, corpusSources,
+    engineIncomeSources, engineLumpsumEvents, wantsLegacy, legacyPercent,
   ]);
 
   // ── Chart Data ──
-  const depletionChartData = result.depletionSchedule.map((row) => ({
+
+  const chartData = result.yearlyBreakdown.map(row => ({
     age: row.age,
-    corpus: row.yearEndCorpus,
-    bucket0: row.bucket0Balance || 0,
-    bucket1: row.bucket1Balance || 0,
-    bucket2: row.bucket2Balance || 0,
-    bucket3: row.bucket3Balance || 0,
-    bucket4: row.bucket4Balance || 0,
-    annualWithdrawal: row.annualWithdrawal,
-    total: row.yearEndCorpus,
+    B0: Math.round(row.bucket0),
+    B1: Math.round(row.bucket1),
+    B2: Math.round(row.bucket2),
+    B3: Math.round(row.bucket3),
+    B4: Math.round(row.bucket4),
+    withdrawal: Math.round(row.annualGapWithdrawal),
   }));
 
-  const pieData = result.buckets
-    .filter(b => b.requiredCorpus > 0)
-    .map((b, i) => ({
-      name: b.label,
-      value: b.requiredCorpus,
-      color: PIE_COLORS[b.bucketNumber],
-    }));
+  // ── CRUD Helpers ──
 
-  const sipCompareData = result.yearsToRetirement > 0 && result.monthlySIPNeeded > 0
-    ? [
-        { name: 'Level SIP', amount: result.monthlySIPNeeded },
-        { name: 'Step-Up SIP (10%)', amount: result.stepUpSIPNeeded },
-      ]
-    : [];
-
-  const handleCurrentAgeChange = (val: number) => {
-    setCurrentAge(val);
-    if (val >= retirementAge) setRetirementAge(Math.min(val + 5, 80));
+  const addCorpusSource = (type: CorpusSourceType) => {
+    setCorpusSources(prev => [...prev, { id: nextCorpusId, type, label: type, amount: 500000 }]);
+    setNextCorpusId(p => p + 1);
   };
 
-  const nameOrYour = investorName || 'Your';
-
-  // ── Custom Tooltip ──
-  const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: { value: number }[]; label?: string }) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-white/95 backdrop-blur-sm border border-surface-300 shadow-lg rounded-xl p-3">
-          <p className="text-xs font-bold text-primary-700 mb-1">Age {label}</p>
-          {payload.map((p, i) => (
-            <p key={i} className="text-xs text-slate-600">{formatINR(p.value)}</p>
-          ))}
-        </div>
-      );
-    }
-    return null;
+  const addIncome = (type: IncomeType) => {
+    const label = INCOME_TYPES.find(t => t.key === type)?.label ?? 'Other';
+    setIncomes(prev => [...prev, { id: nextIncomeId, type, label, monthlyAmount: 10000, growthRate: type === 'rental' ? 5 : 0 }]);
+    setNextIncomeId(p => p + 1);
   };
+
+  const addLumpsum = (type: 'invest' | 'withdraw') => {
+    setLumpsumEvents(prev => [...prev, {
+      id: nextLumpsumId,
+      type,
+      label: type === 'invest' ? 'Property Sale' : 'Child Marriage',
+      amount: 500000,
+      atAge: retirementAge + 5,
+    }]);
+    setNextLumpsumId(p => p + 1);
+  };
+
+  // ── Gap Analysis ──
+  const monthlyGap = result.monthlyHHEAtRetirement - result.totalMonthlyIncome;
+  const incomePercent = result.monthlyHHEAtRetirement > 0
+    ? Math.round((result.totalMonthlyIncome / result.monthlyHHEAtRetirement) * 100)
+    : 0;
+
+  // ═══════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════
 
   return (
     <>
-      {/* ═══ Header ═══ */}
+      {/* ── Hero Header ── */}
       <section className="bg-hero-pattern text-white">
         <div className="container-custom py-10 lg:py-14">
           <Link href="/calculators" className="inline-flex items-center gap-1.5 text-sm text-slate-300 hover:text-white transition-colors mb-6">
@@ -199,889 +238,454 @@ export default function BucketStrategyPage() {
               <Droplets className="w-7 h-7 text-accent" />
             </div>
             <div>
-              <p className="text-xs font-semibold tracking-widest uppercase text-accent mb-1">Retirement Income Optimizer</p>
-              <h1 className="text-3xl sm:text-4xl font-extrabold">Retirement Bucket Strategy</h1>
-              <p className="text-slate-300 mt-1">Optimize your retirement corpus across 5 time-horizon buckets for maximum safety and growth.</p>
+              <p className="text-xs font-semibold tracking-widest uppercase text-accent mb-1">CFP-Grade Planner</p>
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold">Bucket Strategy Planner</h1>
+              <p className="text-slate-300 mt-1 text-sm sm:text-base">Segment your retirement corpus into 5 time-based buckets for sustainable income.</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ═══ Main Content ═══ */}
+      {/* ── Main Layout ── */}
       <section className="section-padding bg-surface-100">
         <div className="container-custom">
+          {/* Top Bar */}
+          <div className="flex items-center justify-between mb-6">
+            <PersonalInfoBar
+              name={clientName} onNameChange={setClientName}
+              age={clientAge} onAgeChange={setClientAge}
+              ageLabel="Current Age" namePlaceholder="e.g., Rajesh"
+              showAge={false}
+            />
+            <DownloadPDFButton elementId="calculator-results" title="Bucket Strategy Plan" fileName={`Bucket-Strategy-${clientName || 'Plan'}`} />
+          </div>
+
           <div id="calculator-results" className="grid lg:grid-cols-[420px_1fr] gap-8">
 
-            {/* ══ Input Panel (Left Sidebar) ══ */}
-            <div className="card-base p-6 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
-              <h2 className="font-bold text-primary-700 mb-6 text-lg">Bucket Strategy Profile</h2>
+            {/* ═══════ LEFT PANEL ═══════ */}
+            <div className="card-base p-5 sm:p-6 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto space-y-6">
 
-              <PersonalInfoBar
-                name={investorName}
-                onNameChange={setInvestorName}
-                age={null}
-                onAgeChange={() => {}}
-                showAge={false}
-                namePlaceholder="e.g., Ram"
-              />
-
-              {/* Card A: Personal Details */}
-              <div className="card-base p-4 sm:p-5 border-t-4 border-emerald-500 mb-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <Calendar className="w-4 h-4 text-emerald-600" />
-                  <h3 className="text-sm font-bold text-primary-700">Personal Details</h3>
-                </div>
-                <div className="space-y-4">
-                  <NumberInput label="Current Age" value={currentAge} onChange={handleCurrentAgeChange} suffix="years" step={1} min={25} max={80} />
-                  <NumberInput label="Retirement Age" value={retirementAge} onChange={setRetirementAge} suffix="years" step={1} min={Math.max(currentAge + 1, 30)} max={80} />
-                  <NumberInput label="Life Expectancy" value={lifeExpectancy} onChange={setLifeExpectancy} suffix="years" step={1} min={Math.max(retirementAge + 5, 60)} max={100} />
-                  <NumberInput label="Monthly Expenses (Today)" value={monthlyExpenses} onChange={setMonthlyExpenses} prefix="₹" step={5000} min={10000} max={1000000} />
-                </div>
-              </div>
-
-              {/* Card B: Return Assumptions */}
-              <div className="card-base p-4 sm:p-5 border-t-4 border-brand-500 mb-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <Settings2 className="w-4 h-4 text-brand-600" />
-                  <h3 className="text-sm font-bold text-primary-700">Return Assumptions</h3>
-                </div>
-
-                {/* Customize Toggle */}
-                <div className={cn('rounded-xl border p-3 mb-4', customReturns ? 'border-brand-200 bg-brand-50/50' : 'border-surface-300 bg-surface-50')}>
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-medium text-slate-600">Customize Returns</label>
-                    <button
-                      role="switch"
-                      aria-checked={customReturns}
-                      onClick={() => setCustomReturns(!customReturns)}
-                      className={cn('relative inline-flex h-6 w-11 items-center rounded-full transition-colors', customReturns ? 'bg-brand-500' : 'bg-slate-300')}
-                      data-pdf-hide
-                    >
-                      <span className={cn('inline-block h-4 w-4 rounded-full bg-white transition-transform shadow-sm', customReturns ? 'translate-x-6' : 'translate-x-1')} />
-                    </button>
+              {/* Section 1: Client Details */}
+              <div className="border-t-4 border-emerald-500 rounded-xl bg-white p-4">
+                <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600" /> Client Details
+                </h3>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-[13px] font-semibold text-slate-600 mb-1.5">Client Name</label>
+                    <input
+                      type="text" value={clientName} onChange={e => setClientName(e.target.value)}
+                      placeholder="e.g., Rajesh Sharma"
+                      className="w-full px-3 py-2.5 text-sm font-medium text-primary-700 bg-surface-50 border border-surface-300 rounded-lg outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-all placeholder:text-slate-300"
+                    />
                   </div>
-                  <div className="text-[10px] text-slate-500 mt-0.5">{customReturns ? 'Set your own return expectations' : 'Using default market assumptions'}</div>
-                </div>
-
-                {customReturns && (
-                  <div className="space-y-4 animate-in">
-                    <NumberInput label="Liquid/FD Return" value={liquidReturn} onChange={setLiquidReturn} suffix="% p.a." step={0.5} min={4} max={12} />
-                    <NumberInput label="Debt/BAF Return" value={debtReturn} onChange={setDebtReturn} suffix="% p.a." step={0.5} min={4} max={12} />
-                    <NumberInput label="Asset Allocation Return" value={assetAllocationReturn} onChange={setAssetAllocationReturn} suffix="% p.a." step={0.5} min={7} max={20} />
-                    <NumberInput label="Equity Return" value={equityReturn} onChange={setEquityReturn} suffix="% p.a." step={0.5} min={7} max={20} />
-                  </div>
-                )}
-
-                <div className="mt-4">
+                  <NumberInput label="Current Age" value={currentAge} onChange={setCurrentAge} suffix="years" step={1} min={25} max={80} />
+                  <NumberInput label="Retirement Age" value={retirementAge} onChange={setRetirementAge} suffix="years" step={1} min={45} max={75} />
+                  <NumberInput label="Life Expectancy" value={lifeExpectancy} onChange={setLifeExpectancy} suffix="years" step={1} min={65} max={100} />
+                  <NumberInput label="Monthly Household Expenses" value={monthlyExpenses} onChange={setMonthlyExpenses} prefix="Rs." step={5000} min={10000} max={1000000} />
                   <NumberInput label="Inflation Rate" value={inflationRate} onChange={setInflationRate} suffix="% p.a." step={0.5} min={3} max={10} />
                 </div>
               </div>
 
-              {/* Card C: Retirement Corpus */}
-              <div className="card-base p-4 sm:p-5 border-t-4 border-amber-500 mb-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <Banknote className="w-4 h-4 text-amber-600" />
-                  <h3 className="text-sm font-bold text-primary-700">Retirement Corpus</h3>
-                </div>
+              {/* Section 2: Retirement Corpus */}
+              <div className="border-t-4 border-brand rounded-xl bg-white p-4">
+                <h3 className="font-bold text-slate-800 mb-1 flex items-center gap-2">
+                  <PiggyBank className="w-4 h-4 text-brand" /> Your Retirement Corpus
+                </h3>
+                <p className="text-[11px] text-slate-400 mb-4">Add all sources of money you will have at retirement</p>
 
-                {/* Lumpsum Toggle */}
-                <div className={cn('rounded-xl border p-3 mb-3', hasLumpsum ? 'border-amber-200 bg-amber-50/50' : 'border-surface-300 bg-surface-50')}>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-medium text-slate-600">I know my retirement corpus</label>
-                    <button
-                      role="switch"
-                      aria-checked={hasLumpsum}
-                      onClick={() => setHasLumpsum(!hasLumpsum)}
-                      className={cn('relative inline-flex h-6 w-11 items-center rounded-full transition-colors', hasLumpsum ? 'bg-amber-500' : 'bg-slate-300')}
-                      data-pdf-hide
-                    >
-                      <span className={cn('inline-block h-4 w-4 rounded-full bg-white transition-transform shadow-sm', hasLumpsum ? 'translate-x-6' : 'translate-x-1')} />
-                    </button>
-                  </div>
-                  <div className="text-[10px] text-slate-500">
-                    {hasLumpsum
-                      ? 'This is the total money you expect to have at retirement — PF + MF + FD + gratuity + all savings combined. The calculator will distribute this across 5 buckets and show how long it lasts.'
-                      : 'Calculator will show the ideal corpus needed and the SIP required to build it before retirement.'}
-                  </div>
-                  {hasLumpsum && (
-                    <div className="mt-3 animate-in">
-                      <NumberInput label="Total Retirement Corpus" value={lumpsumCorpus} onChange={setLumpsumCorpus} prefix="₹" step={500000} min={0} max={500000000} />
-                      <div className="mt-2 p-2 rounded-lg bg-amber-50 border border-amber-200">
-                        <p className="text-[10px] text-amber-700 leading-relaxed">
-                          <strong>How it works:</strong> This amount gets distributed across all 5 buckets proportionally.
-                          If it is less than the ideal corpus, the calculator shows when it will deplete and how much additional
-                          SIP you need. If it is more, the surplus stays invested for your nominee/spouse.
-                        </p>
+                <div className="space-y-3">
+                  {corpusSources.map(src => (
+                    <div key={src.id} className="flex items-start gap-2 p-3 rounded-lg border border-slate-200 bg-slate-50">
+                      <div className="flex-1 space-y-2">
+                        <select
+                          value={src.type}
+                          onChange={e => {
+                            const newType = e.target.value as CorpusSourceType;
+                            setCorpusSources(prev => prev.map(s => s.id === src.id ? { ...s, type: newType, label: newType } : s));
+                          }}
+                          className="w-full px-2 py-1.5 text-xs font-semibold rounded-md border border-slate-200 bg-white text-slate-700"
+                        >
+                          {SOURCE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                        <input
+                          type="text" value={src.label}
+                          onChange={e => setCorpusSources(prev => prev.map(s => s.id === src.id ? { ...s, label: e.target.value } : s))}
+                          className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-md bg-white text-slate-600"
+                          placeholder="Label"
+                        />
+                        <NumberInput label="" value={src.amount} onChange={v => setCorpusSources(prev => prev.map(s => s.id === src.id ? { ...s, amount: v } : s))} prefix="Rs." step={100000} min={0} max={100000000} />
                       </div>
+                      <button onClick={() => setCorpusSources(prev => prev.filter(s => s.id !== src.id))} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors mt-1">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
-                  )}
-                </div>
-
-                {/* Legacy Toggle */}
-                <div className={cn('rounded-xl border p-3 mt-3', wantsLegacy ? 'border-purple-200 bg-purple-50/50' : 'border-surface-300 bg-surface-50')}>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-medium text-slate-600">Leave legacy for nominee/spouse</label>
-                    <button
-                      role="switch"
-                      aria-checked={wantsLegacy}
-                      onClick={() => setWantsLegacy(!wantsLegacy)}
-                      className={cn('relative inline-flex h-6 w-11 items-center rounded-full transition-colors', wantsLegacy ? 'bg-purple-500' : 'bg-slate-300')}
-                      data-pdf-hide
-                    >
-                      <span className={cn('inline-block h-4 w-4 rounded-full bg-white transition-transform shadow-sm', wantsLegacy ? 'translate-x-6' : 'translate-x-1')} />
-                    </button>
-                  </div>
-                  <div className="text-[10px] text-slate-500">
-                    {wantsLegacy
-                      ? 'Extra corpus buffer so money outlasts your life expectancy for your family.'
-                      : 'Corpus planned to last exactly till life expectancy.'}
-                  </div>
-                  {wantsLegacy && (
-                    <div className="mt-3 animate-in">
-                      <NumberInput label="Legacy Buffer" value={legacyPercent} onChange={setLegacyPercent} suffix="%" step={1} min={0} max={25} />
-                      <div className="mt-1 text-[10px] text-purple-600 font-medium">
-                        Adds {legacyPercent}% extra to your required corpus for your nominee/spouse
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-              </div>
-
-              {/* Card E: Retirement Income Sources */}
-              <div className="card-base p-4 sm:p-5 border-t-4 border-teal-500 mb-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <Wallet className="w-5 h-5 text-teal-600" />
-                  <h3 className="text-sm font-bold text-primary-700">Retirement Income Sources</h3>
-                </div>
-
-                <p className="text-xs text-slate-500 mb-3">
-                  Add any income you&apos;ll receive during retirement — pension, rental, SCSS, NPS, SWP, etc.
-                  These reduce how much you need to withdraw from your buckets.
-                </p>
-
-                {/* Add Source Buttons */}
-                <div className="flex flex-wrap gap-1.5 mb-4">
-                  {([
-                    { type: 'pension', label: 'Pension', icon: '\u{1F3DB}\uFE0F' },
-                    { type: 'rental', label: 'Rental', icon: '\u{1F3E0}' },
-                    { type: 'scss', label: 'SCSS', icon: '\u{1F3E6}' },
-                    { type: 'nps', label: 'NPS', icon: '\u{1F4CA}' },
-                    { type: 'swp', label: 'SWP', icon: '\u{1F4B0}' },
-                    { type: 'epf_pension', label: 'EPF Pension', icon: '\u{1F477}' },
-                    { type: 'other', label: 'Other', icon: '\u{2795}' },
-                  ] as const).map(({ type, label, icon }) => (
-                    <button
-                      key={type}
-                      onClick={() => addIncomeSource(type)}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-semibold rounded-lg border border-teal-200 bg-teal-50 text-teal-700 hover:bg-teal-100 transition-colors"
-                      data-pdf-hide
-                    >
-                      <span>{icon}</span> {label}
-                    </button>
                   ))}
                 </div>
 
-                {/* Income Source Cards */}
-                {incomeSources.map((source, idx) => (
-                  <div key={idx} className="rounded-lg border border-slate-200 p-3 mb-2 bg-white">
-                    <div className="flex items-center justify-between mb-2">
-                      <input
-                        type="text"
-                        value={source.label}
-                        onChange={(e) => updateIncomeSource(idx, { label: e.target.value })}
-                        className="text-xs font-semibold text-slate-700 bg-transparent border-none outline-none flex-1"
-                      />
-                      <button onClick={() => removeIncomeSource(idx)} className="text-slate-400 hover:text-red-500 p-1" data-pdf-hide>
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <NumberInput label="Monthly Amount" value={source.monthlyAmount} onChange={(v) => updateIncomeSource(idx, { monthlyAmount: v })} prefix="₹" step={1000} min={0} max={500000} />
-                      {source.type === 'rental' && (
-                        <NumberInput label="Annual Growth" value={source.growthRate || 0} onChange={(v) => updateIncomeSource(idx, { growthRate: v })} suffix="%" step={1} min={0} max={15} />
-                      )}
-                      {source.type === 'scss' && (
-                        <NumberInput label="Term (Years)" value={source.endYear || 5} onChange={(v) => updateIncomeSource(idx, { endYear: v })} suffix="Yrs" step={1} min={1} max={10} />
-                      )}
-                    </div>
-                  </div>
-                ))}
+                <button
+                  onClick={() => addCorpusSource('Other')}
+                  className="mt-3 w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-emerald-700 border border-emerald-300 rounded-lg hover:bg-emerald-50 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add Source
+                </button>
 
-                {/* Total Income Summary */}
-                {incomeSources.length > 0 && (
-                  <div className="mt-3 p-3 rounded-lg bg-teal-50 border border-teal-200">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-teal-700">Total Monthly Income (Year 1)</span>
-                      <span className="text-sm font-bold text-teal-700">
-                        {formatINR(incomeSources.reduce((sum, s) => sum + s.monthlyAmount, 0))}
-                      </span>
-                    </div>
+                {/* Total Corpus Bar */}
+                <div className="mt-4 px-3 py-2.5 rounded-lg bg-emerald-100 border border-emerald-200">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-emerald-700">Total Retirement Corpus</span>
+                    <span className="text-sm font-bold text-emerald-800">Rs. {fmtLakhs(totalCorpus)}</span>
                   </div>
-                )}
+                </div>
               </div>
 
-              {/* Card D: Lumpsum Events During Retirement */}
-              <div className="card-base p-4 sm:p-5 border-t-4 border-rose-500 mb-5">
-                <div className="flex items-center gap-2 mb-3">
-                  <ArrowRightLeft className="w-4 h-4 text-rose-600" />
-                  <h3 className="text-sm font-bold text-primary-700">Lumpsum Events</h3>
+              {/* Section 3: Regular Income */}
+              <div className="border-t-4 border-teal-500 rounded-xl bg-white p-4">
+                <h3 className="font-bold text-slate-800 mb-1 flex items-center gap-2">
+                  <Wallet className="w-4 h-4 text-teal-600" /> Regular Income
+                </h3>
+                <p className="text-[11px] text-slate-400 mb-4">Monthly income you will receive after retirement</p>
+
+                <div className="space-y-3">
+                  {incomes.map(inc => (
+                    <div key={inc.id} className="flex items-start gap-2 p-3 rounded-lg border border-slate-200 bg-slate-50">
+                      <div className="flex-1 space-y-2">
+                        <select
+                          value={inc.type}
+                          onChange={e => {
+                            const newType = e.target.value as IncomeType;
+                            const label = INCOME_TYPES.find(t => t.key === newType)?.label ?? 'Other';
+                            setIncomes(prev => prev.map(i => i.id === inc.id ? { ...i, type: newType, label } : i));
+                          }}
+                          className="w-full px-2 py-1.5 text-xs font-semibold rounded-md border border-slate-200 bg-white text-slate-700"
+                        >
+                          {INCOME_TYPES.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
+                        </select>
+                        <NumberInput label="Monthly Amount" value={inc.monthlyAmount} onChange={v => setIncomes(prev => prev.map(i => i.id === inc.id ? { ...i, monthlyAmount: v } : i))} prefix="Rs." step={1000} min={0} max={500000} />
+                        {inc.type === 'rental' && (
+                          <NumberInput label="Annual Growth" value={inc.growthRate} onChange={v => setIncomes(prev => prev.map(i => i.id === inc.id ? { ...i, growthRate: v } : i))} suffix="%" step={0.5} min={0} max={15} />
+                        )}
+                      </div>
+                      <button onClick={() => setIncomes(prev => prev.filter(i => i.id !== inc.id))} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors mt-1">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
-                <p className="text-[11px] text-slate-500 mb-3">
-                  Add one-time investments (inheritance, property sale) or withdrawals
-                  (child marriage, medical, house) at specific ages during retirement.
-                </p>
+
+                <button
+                  onClick={() => addIncome('other')}
+                  className="mt-3 w-full flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-teal-700 border border-teal-300 rounded-lg hover:bg-teal-50 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Add Income
+                </button>
+
+                <div className="mt-4 px-3 py-2.5 rounded-lg bg-teal-100 border border-teal-200">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-teal-700">Monthly Income</span>
+                    <span className="text-sm font-bold text-teal-800">Rs. {formatNumber(totalMonthlyIncome)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Section 4: Lumpsum Events */}
+              <div className="border-t-4 border-amber-500 rounded-xl bg-white p-4">
+                <h3 className="font-bold text-slate-800 mb-1 flex items-center gap-2">
+                  <ArrowRightLeft className="w-4 h-4 text-amber-600" /> Lumpsum Events
+                </h3>
+                <p className="text-[11px] text-slate-400 mb-4">One-time investments or withdrawals during retirement</p>
 
                 <div className="flex gap-2 mb-3">
-                  <button
-                    onClick={() => setLumpsumEvents(prev => [...prev, { id: Date.now(), type: 'invest', label: 'Inheritance', amount: 2000000, atAge: retirementAge + 5 }])}
-                    className="flex-1 text-[11px] font-semibold py-2 px-3 rounded-lg border border-emerald-300 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors"
-                  >
-                    + Investment
+                  <button onClick={() => addLumpsum('invest')} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-emerald-700 border border-emerald-300 rounded-lg hover:bg-emerald-50 transition-colors">
+                    <Plus className="w-3.5 h-3.5" /> Investment
                   </button>
-                  <button
-                    onClick={() => setLumpsumEvents(prev => [...prev, { id: Date.now() + 1, type: 'withdraw', label: 'Child Marriage', amount: 3000000, atAge: retirementAge + 3 }])}
-                    className="flex-1 text-[11px] font-semibold py-2 px-3 rounded-lg border border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors"
-                  >
-                    + Withdrawal
+                  <button onClick={() => addLumpsum('withdraw')} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-red-700 border border-red-300 rounded-lg hover:bg-red-50 transition-colors">
+                    <Plus className="w-3.5 h-3.5" /> Withdrawal
                   </button>
                 </div>
 
-                {lumpsumEvents.map((ev, idx) => (
-                  <div key={ev.id} className={cn('rounded-lg border p-3 mb-2', ev.type === 'invest' ? 'border-emerald-200 bg-emerald-50/50' : 'border-amber-200 bg-amber-50/50')}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className={cn('text-[10px] font-bold uppercase px-2 py-0.5 rounded-full', ev.type === 'invest' ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white')}>
-                        {ev.type === 'invest' ? 'Investment' : 'Withdrawal'}
-                      </span>
-                      <button onClick={() => setLumpsumEvents(prev => prev.filter((_, i) => i !== idx))} className="p-1 hover:bg-red-100 rounded text-slate-400 hover:text-red-600">
-                        <Trash2 className="w-3 h-3" />
+                <div className="space-y-3">
+                  {lumpsumEvents.map(ev => (
+                    <div key={ev.id} className={cn('flex items-start gap-2 p-3 rounded-lg border', ev.type === 'invest' ? 'border-emerald-200 bg-emerald-50/50' : 'border-red-200 bg-red-50/50')}>
+                      <div className="flex-1 space-y-2">
+                        <span className={cn('inline-block px-2 py-0.5 text-[10px] font-bold rounded-full uppercase', ev.type === 'invest' ? 'bg-emerald-200 text-emerald-800' : 'bg-red-200 text-red-800')}>
+                          {ev.type === 'invest' ? 'Investment' : 'Withdrawal'}
+                        </span>
+                        <input
+                          type="text" value={ev.label}
+                          onChange={e => setLumpsumEvents(prev => prev.map(l => l.id === ev.id ? { ...l, label: e.target.value } : l))}
+                          className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-md bg-white text-slate-600"
+                          placeholder="e.g., Property Sale"
+                        />
+                        <NumberInput label="Amount" value={ev.amount} onChange={v => setLumpsumEvents(prev => prev.map(l => l.id === ev.id ? { ...l, amount: v } : l))} prefix="Rs." step={100000} min={0} max={100000000} />
+                        <NumberInput label="At Age" value={ev.atAge} onChange={v => setLumpsumEvents(prev => prev.map(l => l.id === ev.id ? { ...l, atAge: v } : l))} suffix="years" step={1} min={currentAge} max={lifeExpectancy} />
+                      </div>
+                      <button onClick={() => setLumpsumEvents(prev => prev.filter(l => l.id !== ev.id))} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors mt-1">
+                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
-                    <input
-                      type="text" placeholder="Label" value={ev.label}
-                      onChange={(e) => setLumpsumEvents(prev => prev.map((p, i) => i === idx ? { ...p, label: e.target.value } : p))}
-                      className="w-full text-xs bg-white/60 border border-slate-200 rounded-lg px-2.5 py-1.5 mb-2 outline-none focus:ring-1 focus:ring-brand-300"
-                    />
-                    <NumberInput
-                      label="Amount" value={ev.amount}
-                      onChange={(v) => setLumpsumEvents(prev => prev.map((p, i) => i === idx ? { ...p, amount: v } : p))}
-                      prefix="₹" step={100000} min={100000} max={100000000}
-                    />
-                    <NumberInput
-                      label="At Age" value={ev.atAge}
-                      onChange={(v) => setLumpsumEvents(prev => prev.map((p, i) => i === idx ? { ...p, atAge: v } : p))}
-                      suffix="years" step={1} min={currentAge + 1} max={lifeExpectancy}
-                    />
-                  </div>
-                ))}
+                  ))}
+                </div>
 
                 {lumpsumEvents.length > 0 && (
-                  <div className="mt-2 p-2 rounded-lg bg-slate-50 text-[11px] text-slate-600">
-                    <span className="font-semibold">Net Impact: </span>
-                    <span className={cn('font-bold', lumpsumEvents.reduce((s, e) => s + (e.type === 'invest' ? e.amount : -e.amount), 0) >= 0 ? 'text-emerald-600' : 'text-amber-600')}>
-                      {formatINR(Math.abs(lumpsumEvents.reduce((s, e) => s + (e.type === 'invest' ? e.amount : -e.amount), 0)))}
-                      {' '}{lumpsumEvents.reduce((s, e) => s + (e.type === 'invest' ? e.amount : -e.amount), 0) >= 0 ? 'inflow' : 'outflow'}
-                    </span>
+                  <div className={cn('mt-4 px-3 py-2.5 rounded-lg border', lumpsumNetImpact >= 0 ? 'bg-emerald-100 border-emerald-200' : 'bg-red-100 border-red-200')}>
+                    <div className="flex items-center justify-between">
+                      <span className={cn('text-xs font-semibold', lumpsumNetImpact >= 0 ? 'text-emerald-700' : 'text-red-700')}>Net Impact</span>
+                      <span className={cn('text-sm font-bold', lumpsumNetImpact >= 0 ? 'text-emerald-800' : 'text-red-800')}>
+                        Rs. {lumpsumNetImpact >= 0 ? '+' : ''}{fmtLakhs(lumpsumNetImpact)} {lumpsumNetImpact >= 0 ? 'inflow' : 'outflow'}
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>
 
-              {/* Card E: Pre-Retirement Planning */}
-              {showPreRetirement && yearsToRetirement > 0 && (
-                <div className="card-base p-4 sm:p-5 border-t-4 border-purple-500 mb-5">
-                  <div className="flex items-center gap-2 mb-4">
-                    <Target className="w-4 h-4 text-purple-600" />
-                    <h3 className="text-sm font-bold text-primary-700">Pre-Retirement Planning</h3>
-                  </div>
-                  <div className="space-y-4">
-                    <NumberInput label="Existing Retirement Savings" value={existingSavings} onChange={setExistingSavings} prefix="₹" step={100000} min={0} max={100000000} />
-                    <NumberInput label="Expected Pre-retirement Return" value={preRetirementReturn} onChange={setPreRetirementReturn} suffix="% p.a." step={0.5} min={6} max={20} />
-
-                    {/* Optional: Current Monthly Savings */}
-                    <div className="pt-3 border-t border-purple-200">
-                      <div className="flex items-center justify-between mb-2">
-                        <label className="text-[11px] font-medium text-slate-600">I save regularly (optional)</label>
-                        <button
-                          role="switch" aria-checked={showCurrentSavings}
-                          onClick={() => setShowCurrentSavings(!showCurrentSavings)}
-                          className={cn('relative inline-flex h-5 w-9 items-center rounded-full transition-colors', showCurrentSavings ? 'bg-purple-500' : 'bg-slate-300')}
-                        >
-                          <span className={cn('inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform shadow-sm', showCurrentSavings ? 'translate-x-[18px]' : 'translate-x-[3px]')} />
-                        </button>
+              {/* Section 5: Scenario Tuning */}
+              <div className="border-t-4 border-slate-400 rounded-xl bg-white p-4">
+                <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-slate-500" /> Scenario Tuning
+                </h3>
+                <div className="space-y-4">
+                  {/* HHE Override */}
+                  <div>
+                    <label className="flex items-center justify-between cursor-pointer">
+                      <span className="text-[13px] font-semibold text-slate-600">Retirement HHE Override</span>
+                      <div className={cn('relative w-10 h-5 rounded-full transition-colors', overrideHHE ? 'bg-brand' : 'bg-slate-300')}>
+                        <input type="checkbox" checked={overrideHHE} onChange={handleOverrideToggle} className="sr-only" />
+                        <div className={cn('absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform', overrideHHE ? 'translate-x-5' : 'translate-x-0.5')} />
                       </div>
-                      {showCurrentSavings && (
-                        <div className="space-y-3 mt-2 animate-in">
-                          <NumberInput label="Current Monthly Savings/SIP" value={monthlySavings} onChange={setMonthlySavings} prefix="₹" step={5000} min={0} max={1000000} />
-                          <p className="text-[10px] text-slate-400">Include all SIPs, RDs, PPF, NPS contributions you make monthly</p>
-                          {monthlySavings > 0 && result.monthlySIPNeeded > 0 && (
-                            <div className={cn('rounded-lg p-2.5 text-xs font-medium', monthlySavings >= result.monthlySIPNeeded ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700 border border-amber-200')}>
-                              {monthlySavings >= result.monthlySIPNeeded
-                                ? `You're saving enough! Your ${formatINR(monthlySavings)}/mo exceeds the ${formatINR(result.monthlySIPNeeded)}/mo needed.`
-                                : `Gap: You save ${formatINR(monthlySavings)}/mo but need ${formatINR(result.monthlySIPNeeded)}/mo. Increase by ${formatINR(result.monthlySIPNeeded - monthlySavings)}/mo.`
-                              }
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
+                    </label>
+                    {overrideHHE && (
+                      <div className="mt-2">
+                        <NumberInput label="Monthly Expenses at Retirement" value={retirementHHE} onChange={setRetirementHHE} prefix="Rs." step={5000} min={10000} max={2000000} hint="Change this to run different scenarios. Default is inflation-adjusted." />
+                      </div>
+                    )}
+                    {!overrideHHE && (
+                      <p className="text-[10px] text-slate-400 mt-1">Auto-calculated: Rs. {formatNumber(autoHHE)}/month at retirement</p>
+                    )}
                   </div>
-                  {result.monthlySIPNeeded > 0 && (
-                    <div className="mt-4 bg-gradient-to-r from-purple-50 to-brand-50 rounded-xl p-3">
-                      <div className="text-[10px] text-slate-500 uppercase tracking-wider">Monthly SIP Needed</div>
-                      <div className="text-lg font-extrabold text-purple-700">{formatINR(result.monthlySIPNeeded)}</div>
-                      <div className="text-[10px] text-slate-400 mt-0.5">or {formatINR(result.stepUpSIPNeeded)}/mo with 10% step-up</div>
-                    </div>
-                  )}
-                </div>
-              )}
 
-              {/* Timeline Summary */}
-              <div className="bg-gradient-to-r from-brand-50 to-amber-50 rounded-xl p-4">
-                <div className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">{nameOrYour} Retirement Journey</div>
-                <div className="text-2xl font-extrabold gradient-text">{result.retirementYears} Years</div>
-                <div className="text-xs text-slate-500 mt-1">Age {retirementAge} &rarr; {lifeExpectancy}</div>
-                {yearsToRetirement > 0 && (
-                  <div className="flex items-center gap-2 mt-2 text-xs text-slate-500">
-                    <span className="inline-block w-2 h-2 rounded-full bg-purple-500" /> {yearsToRetirement}y save
-                    <span className="inline-block w-2 h-2 rounded-full bg-amber-500" /> {result.retirementYears}y retire
+                  {/* Legacy */}
+                  <div>
+                    <label className="flex items-center justify-between cursor-pointer">
+                      <span className="text-[13px] font-semibold text-slate-600">Leave Legacy</span>
+                      <div className={cn('relative w-10 h-5 rounded-full transition-colors', wantsLegacy ? 'bg-brand' : 'bg-slate-300')}>
+                        <input type="checkbox" checked={wantsLegacy} onChange={() => setWantsLegacy(!wantsLegacy)} className="sr-only" />
+                        <div className={cn('absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform', wantsLegacy ? 'translate-x-5' : 'translate-x-0.5')} />
+                      </div>
+                    </label>
+                    {wantsLegacy && (
+                      <div className="mt-2">
+                        <NumberInput label="Legacy Percentage" value={legacyPercent} onChange={setLegacyPercent} suffix="%" step={1} min={0} max={25} />
+                        <p className="text-[10px] text-slate-400 mt-1">Rs. {fmtLakhs(totalCorpus * legacyPercent / 100)} will be reserved for your nominee</p>
+                      </div>
+                    )}
                   </div>
-                )}
+
+                  {/* Custom Returns */}
+                  <div>
+                    <label className="flex items-center justify-between cursor-pointer">
+                      <span className="text-[13px] font-semibold text-slate-600">Customize Returns</span>
+                      <div className={cn('relative w-10 h-5 rounded-full transition-colors', customReturns ? 'bg-brand' : 'bg-slate-300')}>
+                        <input type="checkbox" checked={customReturns} onChange={() => setCustomReturns(!customReturns)} className="sr-only" />
+                        <div className={cn('absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform', customReturns ? 'translate-x-5' : 'translate-x-0.5')} />
+                      </div>
+                    </label>
+                    {customReturns && (
+                      <div className="mt-2 space-y-2">
+                        <NumberInput label="Liquid/FD Return" value={liquidReturn} onChange={setLiquidReturn} suffix="%" step={0.5} min={3} max={8} />
+                        <NumberInput label="Debt/Hybrid Return" value={debtReturn} onChange={setDebtReturn} suffix="%" step={0.5} min={5} max={10} />
+                        <NumberInput label="Balanced Return" value={assetAllocationReturn} onChange={setAssetAllocationReturn} suffix="%" step={0.5} min={7} max={14} />
+                        <NumberInput label="Equity Return" value={equityReturn} onChange={setEquityReturn} suffix="%" step={0.5} min={8} max={18} />
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* ══ Results Panel (Right) ══ */}
-            <div className="space-y-8">
+            {/* ═══════ RIGHT PANEL ═══════ */}
+            <div className="space-y-6">
 
-              {/* Personalized Banner */}
-              {investorName && (
-                <div className="bg-gradient-to-r from-brand-50 via-teal-50 to-amber-50 rounded-xl p-5 border border-brand-200/30">
-                  <h3 className="text-lg font-extrabold text-primary-700">{investorName}&apos;s Bucket Strategy</h3>
-                  <p className="text-sm text-slate-500 mt-1">
-                    Retire at {retirementAge} &middot; Plan till age {lifeExpectancy} &middot; {result.retirementYears} year retirement
-                  </p>
-                </div>
-              )}
-
-              {/* PDF Download */}
-              <div className="flex justify-end" data-pdf-hide>
-                <DownloadPDFButton elementId="calculator-results" title="Retirement Bucket Strategy" fileName="bucket-strategy" />
+              {/* Row 1: Summary Cards */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <SummaryCard icon={<PiggyBank className="w-5 h-5" />} label="Total Corpus" value={`Rs. ${fmtLakhs(totalCorpus)}`} color="emerald" />
+                <SummaryCard icon={<Wallet className="w-5 h-5" />} label="Monthly Income" value={`Rs. ${formatNumber(result.totalMonthlyIncome)}`} color="teal" />
+                <SummaryCard
+                  icon={monthlyGap > 0 ? <TrendingDown className="w-5 h-5" /> : <TrendingUp className="w-5 h-5" />}
+                  label={monthlyGap > 0 ? 'Monthly Gap' : 'Monthly Surplus'}
+                  value={`Rs. ${formatNumber(Math.abs(monthlyGap))}`}
+                  color={monthlyGap > 0 ? 'red' : 'emerald'}
+                />
+                <SummaryCard
+                  icon={<ShieldCheck className="w-5 h-5" />}
+                  label="Bucket Duration"
+                  value={result.isSustainable ? 'Sustainable' : `Depletes at ${result.depletionAge}`}
+                  color={result.isSustainable ? 'emerald' : 'red'}
+                />
               </div>
 
-              {/* ── Row 1: Key Metrics ── */}
-              <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-                <div className="card-base p-4 border-t-4 border-emerald-500">
-                  <div className="text-[10px] text-slate-400 uppercase tracking-wider">Total Corpus Needed</div>
-                  <div className="text-lg font-extrabold text-emerald-700 mt-1">{formatINR(result.totalCorpusNeeded)}</div>
-                </div>
-                <div className={cn('card-base p-4 border-t-4', result.shortfall > 0 ? 'border-red-500' : 'border-brand-500')}>
-                  <div className="text-[10px] text-slate-400 uppercase tracking-wider">
-                    {result.shortfall > 0 ? 'Shortfall' : 'Surplus'}
-                  </div>
-                  <div className={cn('text-lg font-extrabold mt-1', result.shortfall > 0 ? 'text-red-600' : 'text-brand-700')}>
-                    {result.shortfall > 0 ? formatINR(result.shortfall) : formatINR(result.surplus)}
-                  </div>
-                </div>
-                <div className="card-base p-4 border-t-4 border-amber-500">
-                  <div className="text-[10px] text-slate-400 uppercase tracking-wider">Monthly at Retirement</div>
-                  <div className="text-lg font-extrabold text-amber-700 mt-1">{formatINR(result.monthlyExpenseAtRetirement)}</div>
-                </div>
-                <div className="card-base p-4 border-t-4 border-teal-500">
-                  <div className="text-[10px] text-slate-400 uppercase tracking-wider">Income Covers</div>
-                  <div className="text-lg font-extrabold text-teal-700 mt-1">{result.incomeCoversPercent?.toFixed(0) || 0}%</div>
-                  <div className="text-xs text-slate-500 mt-1">of Year 1 expenses</div>
-                </div>
-                <div className="card-base p-4 border-t-4 border-blue-500">
-                  <div className="text-[10px] text-slate-400 uppercase tracking-wider">Retirement Duration</div>
-                  <div className="text-lg font-extrabold text-blue-700 mt-1">{result.retirementYears} Years</div>
-                  <div className="text-[10px] text-slate-400">
-                    {result.isSustainable
-                      ? <span className="text-emerald-600 font-semibold">Sustainable</span>
-                      : <span className="text-red-600 font-semibold">Depletes at age {result.corpusLastsUntilAge}</span>
-                    }
-                  </div>
-                </div>
-              </div>
-
-              {/* ── Row 2: The Hero Bucket Diagram ── */}
-              <div className="card-base p-4 sm:p-6">
-                <div className="flex items-center gap-2 mb-6">
-                  <Droplets className="w-5 h-5 text-brand-600" />
-                  <h3 className="text-base font-bold text-primary-700">Your 5-Bucket Allocation</h3>
-                </div>
-
-                {/* Horizontal Flow — Desktop */}
-                <div className="hidden lg:grid grid-cols-5 gap-3">
-                  {result.buckets.map((bucket, i) => {
-                    const style = BUCKET_STYLES[i];
-                    return (
-                      <div key={i} className="relative">
-                        <div className={cn('rounded-xl border-2 p-4 transition-all hover:shadow-lg', style.border, style.bg)}>
-                          {/* Badge */}
-                          <div className={cn('w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold mb-3', style.badge, style.badgeText)}>
-                            {i}
-                          </div>
-                          {/* Label */}
-                          <div className={cn('text-xs font-bold mb-1', style.text)}>{bucket.label}</div>
-                          {/* Timeline */}
-                          <div className="text-[10px] text-slate-500 mb-2">{bucket.timeline}</div>
-                          {/* Amount */}
-                          <div className={cn('text-base font-extrabold mb-1', style.text)}>
-                            {formatINR(bucket.requiredCorpus)}
-                          </div>
-                          {/* Percentage */}
-                          <div className="text-[10px] text-slate-400 mb-2">
-                            {bucket.allocationPercent.toFixed(1)}% of corpus
-                          </div>
-                          {/* Products */}
-                          <div className="text-[9px] text-slate-500 mb-2 leading-relaxed">
-                            {bucket.products.slice(0, 2).join(', ')}
-                          </div>
-                          {/* Return */}
-                          <div className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold', style.bg, style.text)}>
-                            <TrendingUp className="w-3 h-3" /> {bucket.returnRate}% p.a.
-                          </div>
-                          {/* Refill */}
-                          <div className="text-[9px] text-slate-400 mt-2 flex items-center gap-1">
-                            <RefreshCcw className="w-3 h-3" /> {bucket.refillSource}
-                          </div>
-                        </div>
-                        {/* Arrow between buckets */}
-                        {i < 4 && (
-                          <div className="absolute -right-3 top-1/2 -translate-y-1/2 z-10">
-                            <ArrowRight className="w-5 h-5 text-slate-300" />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Vertical Flow — Mobile */}
-                <div className="lg:hidden space-y-3">
-                  {result.buckets.map((bucket, i) => {
-                    const style = BUCKET_STYLES[i];
-                    return (
-                      <div key={i}>
-                        <div className={cn('rounded-xl border-2 p-4', style.border, style.bg)}>
-                          <div className="flex items-start gap-3">
-                            <div className={cn('w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0', style.badge, style.badgeText)}>
-                              {i}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between">
-                                <div className={cn('text-sm font-bold', style.text)}>{bucket.label}</div>
-                                <div className={cn('text-base font-extrabold', style.text)}>{formatINR(bucket.requiredCorpus)}</div>
-                              </div>
-                              <div className="flex items-center justify-between mt-1">
-                                <div className="text-[10px] text-slate-500">{bucket.timeline}</div>
-                                <div className="text-[10px] text-slate-400">{bucket.allocationPercent.toFixed(1)}%</div>
-                              </div>
-                              <div className="flex items-center gap-2 mt-2 flex-wrap">
-                                <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold', style.bg, style.text)}>
-                                  <TrendingUp className="w-3 h-3" /> {bucket.returnRate}% p.a.
-                                </span>
-                                <span className="text-[9px] text-slate-400">{bucket.products[0]}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        {/* Arrow */}
-                        {i < 4 && (
-                          <div className="flex justify-center py-1">
-                            <ChevronDown className="w-5 h-5 text-slate-300" />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* ── Row 3: Allocation Pie + Table ── */}
-              <div className="grid lg:grid-cols-2 gap-6">
-                {/* Pie Chart */}
-                <div className="card-base p-4 sm:p-5">
-                  <h3 className="text-sm font-bold text-primary-700 mb-4 flex items-center gap-2">
-                    <PiggyBank className="w-4 h-4 text-brand-600" /> Allocation Breakdown
-                  </h3>
-                  <div className="h-[280px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
-                        <Pie
-                          data={pieData}
-                          cx="50%"
-                          cy="50%"
-                          innerRadius={60}
-                          outerRadius={100}
-                          paddingAngle={3}
-                          dataKey="value"
-                          label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                          labelLine={false}
-                        >
-                          {pieData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          formatter={(value: number) => formatINR(value)}
-                          contentStyle={{ borderRadius: 12, border: '1px solid #E2E8F0', fontSize: 12 }}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                {/* Product Allocation Table */}
-                <div className="card-base p-4 sm:p-5">
-                  <h3 className="text-sm font-bold text-primary-700 mb-4 flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4 text-brand-600" /> Product Allocation
-                  </h3>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="border-b border-surface-300">
-                          <th className="text-left py-2 text-slate-500 font-medium">Bucket</th>
-                          <th className="text-left py-2 text-slate-500 font-medium">Timeline</th>
-                          <th className="text-right py-2 text-slate-500 font-medium">Amount</th>
-                          <th className="text-right py-2 text-slate-500 font-medium">%</th>
-                          <th className="text-right py-2 text-slate-500 font-medium">Return</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {result.buckets.map((bucket, i) => {
-                          const style = BUCKET_STYLES[i];
-                          return (
-                            <tr key={i} className="border-b border-surface-200/60">
-                              <td className="py-2.5">
-                                <div className="flex items-center gap-2">
-                                  <div className={cn('w-3 h-3 rounded-full shrink-0', style.badge)} />
-                                  <span className={cn('font-semibold', style.text)}>{bucket.label}</span>
-                                </div>
-                              </td>
-                              <td className="py-2.5 text-slate-500">{bucket.timeline}</td>
-                              <td className="py-2.5 text-right font-bold text-primary-700">{formatINR(bucket.requiredCorpus)}</td>
-                              <td className="py-2.5 text-right text-slate-500">{bucket.allocationPercent.toFixed(1)}%</td>
-                              <td className="py-2.5 text-right text-slate-500">{bucket.returnRate}%</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                      <tfoot>
-                        <tr className="border-t-2 border-primary-700">
-                          <td className="py-2.5 font-bold text-primary-700" colSpan={2}>Total</td>
-                          <td className="py-2.5 text-right font-extrabold text-primary-700">{formatINR(result.totalCorpusNeeded)}</td>
-                          <td className="py-2.5 text-right font-bold text-primary-700">100%</td>
-                          <td className="py-2.5 text-right text-slate-400">&mdash;</td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-                </div>
-              </div>
-
-              {/* ── Row 4: Corpus Depletion Chart ── */}
-              {depletionChartData.length > 0 && (
-                <div className="card-base p-4 sm:p-6">
-                  <h3 className="text-sm font-bold text-primary-700 mb-4 flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-brand-600" /> Corpus Depletion Over Time
-                  </h3>
-                  <div className="h-[360px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <ComposedChart data={depletionChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                        <XAxis
-                          dataKey="age"
-                          tick={{ fontSize: 11 }}
-                          tickFormatter={(v) => `${v}`}
-                          label={{ value: 'Age', position: 'insideBottom', offset: -5, style: { fontSize: 11 } }}
-                        />
-                        <YAxis
-                          tick={{ fontSize: 11 }}
-                          tickFormatter={(v) => {
-                            if (v >= 10000000) return `${(v / 10000000).toFixed(1)}Cr`;
-                            if (v >= 100000) return `${(v / 100000).toFixed(0)}L`;
-                            return `${(v / 1000).toFixed(0)}K`;
-                          }}
-                        />
-                        <Tooltip formatter={(v) => formatINR(v as number)} contentStyle={{ borderRadius: 12, border: '1px solid #E2E8F0', fontSize: 12 }} />
-                        <Area type="monotone" dataKey="bucket4" stackId="1" stroke="#10B981" fill="#10B981" fillOpacity={0.6} name="Bucket 4 (Equity)" />
-                        <Area type="monotone" dataKey="bucket3" stackId="1" stroke="#F59E0B" fill="#F59E0B" fillOpacity={0.6} name="Bucket 3 (Growth)" />
-                        <Area type="monotone" dataKey="bucket2" stackId="1" stroke="#8B5CF6" fill="#8B5CF6" fillOpacity={0.6} name="Bucket 2 (Balanced)" />
-                        <Area type="monotone" dataKey="bucket1" stackId="1" stroke="#3B82F6" fill="#3B82F6" fillOpacity={0.6} name="Bucket 1 (Liquid)" />
-                        <Area type="monotone" dataKey="bucket0" stackId="1" stroke="#EF4444" fill="#EF4444" fillOpacity={0.6} name="Bucket 0 (Emergency)" />
-                        <Line type="monotone" dataKey="annualWithdrawal" stroke="#1A1A2E" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Annual Withdrawal" />
-                        <ReferenceLine y={0} stroke="#666" />
-                      </ComposedChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              )}
-
-              {/* ── Bucket Rebalancing Timeline ── */}
-              {result.rebalancingEvents && result.rebalancingEvents.length > 0 && (
-                <div className="card-base p-4 sm:p-5">
-                  <div className="flex items-center gap-2 mb-4">
-                    <RefreshCcw className="w-5 h-5 text-brand" />
-                    <h3 className="text-base font-bold text-primary-700">Bucket Rebalancing Timeline</h3>
-                  </div>
-                  <p className="text-xs text-slate-500 mb-3">
-                    When a bucket&apos;s balance falls below 3 months&apos; expenses, it gets refilled from the next higher bucket.
-                    This is the cascade that keeps your income flowing.
-                  </p>
-                  <div className="space-y-2">
-                    {result.rebalancingEvents.map((event, idx) => (
-                      <div key={idx} className="flex items-center gap-3 p-2.5 rounded-lg bg-surface-100 border border-surface-200">
-                        <div className={cn('w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold', BUCKET_STYLES[event.fromBucket]?.badge)}>
-                          {event.fromBucket}
-                        </div>
-                        <ArrowRight className="w-4 h-4 text-slate-400" />
-                        <div className={cn('w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold', BUCKET_STYLES[event.toBucket]?.badge)}>
-                          {event.toBucket}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-slate-700">Year {event.year} — {formatINR(event.amount)} transferred</p>
-                          <p className="text-[10px] text-slate-500">{event.trigger}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* ── Row 5: Year-by-Year Details ── */}
-              <div className="card-base p-4 sm:p-5">
-                <button
-                  onClick={() => setShowYearlyDetails(!showYearlyDetails)}
-                  className="w-full flex items-center justify-between text-left"
-                  data-pdf-hide
-                >
-                  <h3 className="text-sm font-bold text-primary-700 flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-brand-600" /> Year-by-Year Schedule
-                  </h3>
-                  {showYearlyDetails ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
-                </button>
-
-                {showYearlyDetails && (
-                  <div className="mt-4 overflow-x-auto animate-in">
-                    <table className="w-full text-xs min-w-[1200px]">
-                      <thead>
-                        <tr className="border-b-2 border-surface-300 bg-surface-50">
-                          <th className="text-left py-2.5 px-2 text-slate-500 font-semibold">Yr</th>
-                          <th className="text-left py-2.5 px-1 text-slate-500 font-semibold">Age</th>
-                          <th className="text-right py-2.5 px-2 text-slate-500 font-semibold">Start Corpus</th>
-                          <th className="text-right py-2.5 px-2 text-red-500 font-semibold">Gross Expense</th>
-                          <th className="text-right py-2.5 px-2 text-emerald-500 font-semibold">Income</th>
-                          <th className="text-right py-2.5 px-2 text-red-600 font-semibold">Net Withdrawal</th>
-                          <th className="text-right py-2.5 px-2 text-brand-500 font-semibold">Returns</th>
-                          <th className="text-right py-2.5 px-2 text-purple-500 font-semibold">Refill Amt</th>
-                          <th className="text-center py-2.5 px-1 text-slate-400 font-semibold">Active</th>
-                          <th className="text-right py-2.5 px-2 text-primary-700 font-semibold">End Corpus</th>
-                          <th className="text-right py-2.5 px-2 text-slate-400 font-semibold">Cumulative Out</th>
-                          <th className="text-left py-2.5 px-2 text-slate-400 font-semibold">Refill Events</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {result.depletionSchedule.map((row, i) => {
-                          const bucketLabels = ['Emergency', 'Liquid', 'Debt', 'Balanced', 'Equity'];
-                          const bucketColors = ['bg-red-100 text-red-700', 'bg-blue-100 text-blue-700', 'bg-purple-100 text-purple-700', 'bg-amber-100 text-amber-700', 'bg-emerald-100 text-emerald-700'];
-                          return (
-                            <tr key={i} className={cn('border-b border-surface-200/60 hover:bg-surface-50', i % 5 === 4 && 'border-b-2 border-surface-300')}>
-                              <td className="py-2 px-2 font-medium text-primary-700">{row.year}</td>
-                              <td className="py-2 px-1 text-slate-600">{row.age}</td>
-                              <td className="py-2 px-2 text-right text-slate-600">{formatINR(row.yearStartCorpus)}</td>
-                              <td className="py-2 px-2 text-right text-red-500">{formatINR(row.grossExpense || row.annualWithdrawal)}</td>
-                              <td className="py-2 px-2 text-right text-emerald-600 font-medium">{row.annualIncome > 0 ? `+${formatINR(row.annualIncome)}` : '—'}</td>
-                              <td className="py-2 px-2 text-right text-red-600 font-bold">{formatINR(row.annualWithdrawal)}</td>
-                              <td className="py-2 px-2 text-right text-brand-600">{formatINR(row.annualReturn)}</td>
-                              <td className="py-2 px-2 text-right text-purple-600">{row.annualFunding > 0 ? formatINR(row.annualFunding) : '—'}</td>
-                              <td className="py-2 px-1 text-center"><span className={cn('inline-block px-1.5 py-0.5 rounded text-[9px] font-bold', bucketColors[row.activeBucket])}>{bucketLabels[row.activeBucket]}</span></td>
-                              <td className="py-2 px-2 text-right font-extrabold text-primary-700">{formatINR(row.yearEndCorpus)}</td>
-                              <td className="py-2 px-2 text-right text-slate-400">{formatINR(row.cumulativeWithdrawn)}</td>
-                              <td className="py-2 px-2 text-left text-[10px] text-slate-500 max-w-[180px] truncate" title={row.refillEvents?.join(', ') || ''}>{row.refillEvents?.length > 0 ? row.refillEvents.join(', ') : '—'}</td>
-                            </tr>
-                          );
-                        })}
-                        {/* Totals row */}
-                        <tr className="bg-surface-100 border-t-2 border-surface-300 font-bold">
-                          <td className="py-3 px-2 text-primary-700" colSpan={3}>Total</td>
-                          <td className="py-3 px-2 text-right text-red-500">{formatINR(result.depletionSchedule.reduce((s, r) => s + (r.grossExpense || r.annualWithdrawal), 0))}</td>
-                          <td className="py-3 px-2 text-right text-emerald-600">{formatINR(result.depletionSchedule.reduce((s, r) => s + (r.annualIncome || 0), 0))}</td>
-                          <td className="py-3 px-2 text-right text-red-600">{formatINR(result.depletionSchedule.reduce((s, r) => s + r.annualWithdrawal, 0))}</td>
-                          <td className="py-3 px-2 text-right text-brand-600">{formatINR(result.depletionSchedule.reduce((s, r) => s + r.annualReturn, 0))}</td>
-                          <td className="py-3 px-2 text-right text-purple-600">{formatINR(result.depletionSchedule.reduce((s, r) => s + (r.annualFunding || 0), 0))}</td>
-                          <td className="py-3 px-1" />
-                          <td className="py-3 px-2 text-right text-primary-700">{formatINR(result.depletionSchedule[result.depletionSchedule.length - 1]?.yearEndCorpus || 0)}</td>
-                          <td className="py-3 px-2 text-right text-slate-400">{formatINR(result.depletionSchedule[result.depletionSchedule.length - 1]?.cumulativeWithdrawn || 0)}</td>
-                          <td className="py-3 px-2" />
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-
-              {/* ── Row 6: SIP Planning ── */}
-              {yearsToRetirement > 0 && result.monthlySIPNeeded > 0 && (
-                <div className="card-base p-4 sm:p-6 border-t-4 border-purple-500">
-                  <h3 className="text-sm font-bold text-primary-700 mb-4 flex items-center gap-2">
-                    <Target className="w-4 h-4 text-purple-600" /> SIP Planning ({yearsToRetirement} Years to Retirement)
-                  </h3>
-                  <div className="grid sm:grid-cols-2 gap-4 mb-6">
-                    <div className="rounded-xl bg-purple-50 p-4">
-                      <div className="text-[10px] text-slate-500 uppercase tracking-wider">Level SIP (Fixed Monthly)</div>
-                      <div className="text-xl font-extrabold text-purple-700 mt-1">{formatINR(result.monthlySIPNeeded)}<span className="text-xs font-normal text-slate-400">/month</span></div>
-                      <div className="text-[10px] text-slate-400 mt-1">Same amount every month for {yearsToRetirement} years</div>
-                    </div>
-                    <div className="rounded-xl bg-brand-50 p-4">
-                      <div className="text-[10px] text-slate-500 uppercase tracking-wider">Step-Up SIP (10% Annual Increase)</div>
-                      <div className="text-xl font-extrabold text-brand-700 mt-1">{formatINR(result.stepUpSIPNeeded)}<span className="text-xs font-normal text-slate-400">/month</span></div>
-                      <div className="text-[10px] text-slate-400 mt-1">Start lower, increase 10% every year</div>
-                    </div>
-                  </div>
-                  {sipCompareData.length > 0 && (
-                    <div className="h-[200px]">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={sipCompareData} layout="vertical" margin={{ left: 10, right: 20 }}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
-                          <XAxis
-                            type="number"
-                            tick={{ fontSize: 11 }}
-                            tickFormatter={(v) => formatINR(v)}
-                          />
-                          <YAxis
-                            dataKey="name"
-                            type="category"
-                            tick={{ fontSize: 11 }}
-                            width={120}
-                          />
-                          <Tooltip formatter={(value: number) => formatINR(value)} contentStyle={{ borderRadius: 12, border: '1px solid #E2E8F0', fontSize: 12 }} />
-                          <Bar dataKey="amount" fill="#8B5CF6" radius={[0, 8, 8, 0]} name="Monthly SIP" />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
+              {/* Row 2: Gap Analysis */}
+              <div className="card-base p-5">
+                <h3 className="font-bold text-slate-800 mb-3">Gap Analysis</h3>
+                <div className="relative h-8 rounded-full overflow-hidden bg-slate-100">
+                  <div className="absolute inset-y-0 left-0 rounded-full bg-emerald-400" style={{ width: `${Math.min(100, incomePercent)}%` }} />
+                  {incomePercent < 100 && (
+                    <div className="absolute inset-y-0 right-0 rounded-r-full bg-red-300" style={{ width: `${100 - Math.min(100, incomePercent)}%` }} />
                   )}
+                  <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-white drop-shadow">
+                    {incomePercent}% covered by income
+                  </div>
                 </div>
-              )}
+                <p className="text-xs text-slate-500 mt-2">
+                  {incomePercent >= 100
+                    ? `Your retirement income fully covers your expenses of Rs. ${formatNumber(result.monthlyHHEAtRetirement)}/month.`
+                    : `Your income covers ${incomePercent}% of retirement expenses. The remaining ${100 - incomePercent}% (Rs. ${formatNumber(Math.max(0, monthlyGap))}/month) will be funded from bucket withdrawals.`
+                  }
+                </p>
+              </div>
 
-              {/* ── Row 7: CFP Insights ── */}
-              <div className="card-base p-4 sm:p-6 bg-gradient-to-br from-brand-50/50 via-white to-amber-50/50">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-10 h-10 rounded-xl bg-brand-100 flex items-center justify-center shrink-0">
-                    <Lightbulb className="w-5 h-5 text-brand-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-primary-700">CFP Insights</h3>
-                    <p className="text-[10px] text-slate-400">Personalized observations for your bucket strategy</p>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  {result.insights.map((insight, i) => (
-                    <InsightCard key={i} insight={insight} />
-                  ))}
+              {/* Row 3: Bucket Distribution */}
+              <div className="card-base p-5">
+                <h3 className="font-bold text-slate-800 mb-4">Bucket Distribution</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
+                  {result.buckets.map((bucket, idx) => {
+                    const style = BUCKET_STYLES[idx] ?? BUCKET_STYLES[0];
+                    return (
+                      <div key={idx} className={cn('relative rounded-xl border-2 p-3', style.border, style.bg)}>
+                        <div className="flex items-center gap-1.5 mb-2">
+                          <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ backgroundColor: style.color }}>
+                            B{idx}
+                          </div>
+                          <span className={cn('text-xs font-bold', style.text)}>{style.label}</span>
+                        </div>
+                        <div className={cn('text-lg font-extrabold mb-1', style.text)}>
+                          {bucket.amountInLakhs}
+                        </div>
+                        <div className="text-[10px] text-slate-500 space-y-0.5">
+                          <div>Return: {bucket.returnRate}% p.a.</div>
+                          <div>{bucket.products.join(', ')}</div>
+                        </div>
+                        {/* Arrow connector (hidden on mobile) */}
+                        {idx < 4 && (
+                          <div className="hidden sm:block absolute -right-3 top-1/2 -translate-y-1/2 text-slate-300 z-10">
+                            <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6h8M7 3l3 3-3 3" stroke="currentColor" strokeWidth="1.5" fill="none" /></svg>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* ── Row 8: Educational Section ── */}
-              <div className="card-base p-4 sm:p-5">
+              {/* Row 4: Depletion Chart */}
+              {chartData.length > 0 && (
+                <div className="card-base p-5">
+                  <h3 className="font-bold text-slate-800 mb-4">Corpus Depletion Over Time</h3>
+                  <div className="h-72 sm:h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+                        <XAxis dataKey="age" tick={{ fontSize: 11 }} label={{ value: 'Age', position: 'insideBottom', offset: -2, fontSize: 11 }} />
+                        <YAxis tick={{ fontSize: 11 }} tickFormatter={v => fmtLakhs(v)} />
+                        <Tooltip formatter={(v: number) => `Rs. ${fmtLakhs(v)}`} labelFormatter={l => `Age ${l}`} />
+                        <Area type="monotone" dataKey="B4" stackId="1" fill={BUCKET_STYLES[4].fill} stroke={BUCKET_STYLES[4].fill} name="Equity" fillOpacity={0.8} />
+                        <Area type="monotone" dataKey="B3" stackId="1" fill={BUCKET_STYLES[3].fill} stroke={BUCKET_STYLES[3].fill} name="Growth" fillOpacity={0.8} />
+                        <Area type="monotone" dataKey="B2" stackId="1" fill={BUCKET_STYLES[2].fill} stroke={BUCKET_STYLES[2].fill} name="Medium" fillOpacity={0.8} />
+                        <Area type="monotone" dataKey="B1" stackId="1" fill={BUCKET_STYLES[1].fill} stroke={BUCKET_STYLES[1].fill} name="Short" fillOpacity={0.8} />
+                        <Area type="monotone" dataKey="B0" stackId="1" fill={BUCKET_STYLES[0].fill} stroke={BUCKET_STYLES[0].fill} name="Emergency" fillOpacity={0.8} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              )}
+
+              {/* Row 5: Year-by-Year Table */}
+              <div className="card-base overflow-hidden">
                 <button
-                  onClick={() => setShowEducation(!showEducation)}
-                  className="w-full flex items-center justify-between text-left"
-                  data-pdf-hide
+                  onClick={() => setShowYearlyTable(!showYearlyTable)}
+                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition-colors"
                 >
-                  <h3 className="text-sm font-bold text-primary-700 flex items-center gap-2">
-                    <Info className="w-4 h-4 text-brand-600" /> How Bucket Strategy Works
-                  </h3>
-                  {showEducation ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
+                  <h3 className="font-bold text-slate-800">Year-by-Year Breakdown</h3>
+                  {showYearlyTable ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
                 </button>
-
-                {showEducation && (
-                  <div className="mt-5 animate-in space-y-6">
-                    {/* 5-Step Explanation */}
-                    <div className="space-y-4">
-                      <EducationStep
-                        step={1}
-                        title="Divide Your Corpus into Time-Horizon Buckets"
-                        description="Instead of one large pool, split your retirement money into 5 buckets based on when you need it. Near-term needs go into safe instruments, far-off needs into growth assets."
-                        icon={<Droplets className="w-5 h-5" />}
-                        color="brand"
-                      />
-                      <EducationStep
-                        step={2}
-                        title="Bucket 0 & 1 Cover Immediate Needs"
-                        description="Emergency fund (6 months) stays in a savings account or liquid fund. Short-term income (1-3 years) goes into FDs and ultra-short funds. This shields you from market volatility."
-                        icon={<Wallet className="w-5 h-5" />}
-                        color="blue"
-                      />
-                      <EducationStep
-                        step={3}
-                        title="Bucket 2 & 3 Bridge the Gap"
-                        description="Medium-term (4-6 years) in balanced advantage and multi-asset funds. Growth (7-10 years) in flexi-cap and aggressive hybrid funds. Moderate risk for moderate returns."
-                        icon={<BarChart3 className="w-5 h-5" />}
-                        color="purple"
-                      />
-                      <EducationStep
-                        step={4}
-                        title="Bucket 4 is Your Growth Engine"
-                        description="Long-term (10+ years) stays in equity — multi-cap, flexi-cap, value funds. This bucket has time to ride out market cycles and deliver inflation-beating returns."
-                        icon={<TrendingUp className="w-5 h-5" />}
-                        color="emerald"
-                      />
-                      <EducationStep
-                        step={5}
-                        title="Refill Mechanism — The Secret Sauce"
-                        description="As lower buckets deplete, they are refilled from higher buckets. This 'waterfall' approach means you never sell equity in a downturn. Wait for recovery, then refill."
-                        icon={<RefreshCcw className="w-5 h-5" />}
-                        color="amber"
-                      />
-                    </div>
-
-                    {/* Refill Diagram */}
-                    <div className="bg-gradient-to-r from-surface-100 to-surface-200 rounded-xl p-4">
-                      <h4 className="text-xs font-bold text-primary-700 mb-3">Refill Waterfall</h4>
-                      <div className="flex flex-col sm:flex-row items-center gap-2 text-[10px] font-semibold">
-                        <span className="px-3 py-1.5 rounded-lg bg-emerald-100 text-emerald-700">Bucket 4 (Equity)</span>
-                        <ArrowRight className="w-4 h-4 text-slate-400 rotate-90 sm:rotate-0" />
-                        <span className="px-3 py-1.5 rounded-lg bg-amber-100 text-amber-700">Bucket 3 (Growth)</span>
-                        <ArrowRight className="w-4 h-4 text-slate-400 rotate-90 sm:rotate-0" />
-                        <span className="px-3 py-1.5 rounded-lg bg-purple-100 text-purple-700">Bucket 2 (Debt)</span>
-                        <ArrowRight className="w-4 h-4 text-slate-400 rotate-90 sm:rotate-0" />
-                        <span className="px-3 py-1.5 rounded-lg bg-blue-100 text-blue-700">Bucket 1 (Liquid)</span>
-                        <ArrowRight className="w-4 h-4 text-slate-400 rotate-90 sm:rotate-0" />
-                        <span className="px-3 py-1.5 rounded-lg bg-red-100 text-red-700">Bucket 0 (Emergency)</span>
-                      </div>
-                    </div>
-
-                    {/* Who is it for */}
-                    <div className="bg-gradient-to-r from-brand-50 to-teal-50 rounded-xl p-4">
-                      <h4 className="text-xs font-bold text-primary-700 mb-2">Who is the Bucket Strategy for?</h4>
-                      <ul className="space-y-2 text-xs text-slate-600">
-                        <li className="flex items-start gap-2">
-                          <CheckCircle2 className="w-4 h-4 text-brand-500 mt-0.5 shrink-0" />
-                          <span>Retirees or near-retirees who want to systematically draw down their corpus</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <CheckCircle2 className="w-4 h-4 text-brand-500 mt-0.5 shrink-0" />
-                          <span>Anyone who worries about market crashes depleting retirement funds</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <CheckCircle2 className="w-4 h-4 text-brand-500 mt-0.5 shrink-0" />
-                          <span>People who want a clear, rule-based approach instead of ad-hoc withdrawals</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <CheckCircle2 className="w-4 h-4 text-brand-500 mt-0.5 shrink-0" />
-                          <span>Investors looking to balance safety (immediate needs) with growth (long-term wealth)</span>
-                        </li>
-                      </ul>
-                    </div>
+                {showYearlyTable && (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-[11px]">
+                      <thead>
+                        <tr className="bg-slate-100 text-slate-600 font-semibold">
+                          <th className="px-2 py-2 text-left">Yr</th>
+                          <th className="px-2 py-2 text-left">Age</th>
+                          <th className="px-2 py-2 text-right">Mo. Expense</th>
+                          <th className="px-2 py-2 text-right">Mo. Income</th>
+                          <th className="px-2 py-2 text-right">Mo. Gap</th>
+                          <th className="px-2 py-2 text-right">Ann. Withdrawal</th>
+                          <th className="px-2 py-2 text-center">Active</th>
+                          <th className="px-2 py-2 text-right text-emerald-600">B0</th>
+                          <th className="px-2 py-2 text-right text-teal-600">B1</th>
+                          <th className="px-2 py-2 text-right text-amber-600">B2</th>
+                          <th className="px-2 py-2 text-right text-purple-600">B3</th>
+                          <th className="px-2 py-2 text-right text-red-600">B4</th>
+                          <th className="px-2 py-2 text-right">Total</th>
+                          <th className="px-2 py-2 text-left">Events</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {result.yearlyBreakdown.map((row, idx) => {
+                          const moGap = row.monthlyGap;
+                          return (
+                            <tr key={idx} className={cn('border-t border-slate-100', idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50')}>
+                              <td className="px-2 py-1.5">{row.year}</td>
+                              <td className="px-2 py-1.5 font-semibold">{row.age}</td>
+                              <td className="px-2 py-1.5 text-right">{formatNumber(row.monthlyExpense)}</td>
+                              <td className="px-2 py-1.5 text-right text-emerald-600">{formatNumber(row.monthlyIncome)}</td>
+                              <td className={cn('px-2 py-1.5 text-right font-semibold', moGap > 0 ? 'text-red-600' : 'text-emerald-600')}>
+                                {formatNumber(Math.abs(moGap))}
+                              </td>
+                              <td className="px-2 py-1.5 text-right">{fmtLakhs(row.annualGapWithdrawal)}</td>
+                              <td className="px-2 py-1.5 text-center">
+                                <span className="inline-block px-1.5 py-0.5 rounded text-white text-[9px] font-bold" style={{ backgroundColor: BUCKET_STYLES[parseInt(row.activeBucket.replace('B', '')) || 0]?.color ?? '#94A3B8' }}>
+                                  {row.activeBucket}
+                                </span>
+                              </td>
+                              <td className="px-2 py-1.5 text-right">{fmtLakhs(row.bucket0)}</td>
+                              <td className="px-2 py-1.5 text-right">{fmtLakhs(row.bucket1)}</td>
+                              <td className="px-2 py-1.5 text-right">{fmtLakhs(row.bucket2)}</td>
+                              <td className="px-2 py-1.5 text-right">{fmtLakhs(row.bucket3)}</td>
+                              <td className="px-2 py-1.5 text-right">{fmtLakhs(row.bucket4)}</td>
+                              <td className="px-2 py-1.5 text-right font-semibold">{fmtLakhs(row.totalCorpus)}</td>
+                              <td className="px-2 py-1.5 text-[10px] text-slate-400 max-w-[120px] truncate">{row.refillEvent || row.lumpsumEvent || ''}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </div>
 
-              {/* ── Row 9: Disclaimer ── */}
-              <div className="card-base p-4 sm:p-5 bg-surface-50">
-                <p className="text-[10px] text-slate-400 leading-relaxed">{DISCLAIMER.calculator}</p>
-                <p className="text-[10px] text-slate-400 leading-relaxed mt-2">{DISCLAIMER.mutual_fund}</p>
-                <p className="text-[10px] text-slate-400 leading-relaxed mt-1">{DISCLAIMER.amfi}</p>
+              {/* Row 6: CFP Insights */}
+              {result.insights.length > 0 && (
+                <div className="card-base p-5">
+                  <h3 className="font-bold text-slate-800 mb-4">CFP Insights</h3>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {result.insights.map((insight, idx) => {
+                      const s = INSIGHT_STYLES[insight.type];
+                      return (
+                        <div key={idx} className={cn('rounded-xl border p-4', s.bg, s.border)}>
+                          <div className={cn('text-sm font-bold mb-1', s.text)}>{insight.title}</div>
+                          <div className={cn('text-xs', s.text, 'opacity-80')}>{insight.description}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Row 7: Disclaimer */}
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-[10px] text-slate-400 leading-relaxed">
+                  <strong>Disclaimer:</strong> {DISCLAIMER.mutual_fund} This calculator is for educational purposes only and does not constitute financial advice. The bucket strategy is a framework — actual implementation should consider tax implications, rebalancing costs, and individual risk tolerance. Consult a SEBI-registered investment advisor or CFP for personalised advice.
+                </p>
               </div>
             </div>
           </div>
@@ -1091,57 +695,27 @@ export default function BucketStrategyPage() {
   );
 }
 
-// ── Sub-Components ──
+// ── Summary Card Component ──
 
-function InsightCard({ insight }: { insight: BucketInsight }) {
-  const config = {
-    positive: { icon: CheckCircle2, bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', iconColor: 'text-emerald-500' },
-    warning: { icon: AlertTriangle, bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', iconColor: 'text-amber-500' },
-    critical: { icon: AlertTriangle, bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-700', iconColor: 'text-red-500' },
-    tip: { icon: Lightbulb, bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700', iconColor: 'text-blue-500' },
-  }[insight.type];
-
-  const Icon = config.icon;
-
-  return (
-    <div className={cn('rounded-xl border p-3 flex items-start gap-3', config.bg, config.border)}>
-      <Icon className={cn('w-4 h-4 mt-0.5 shrink-0', config.iconColor)} />
-      <div>
-        <div className={cn('text-xs font-bold', config.text)}>{insight.title}</div>
-        <div className="text-[11px] text-slate-600 mt-0.5 leading-relaxed">{insight.description}</div>
-      </div>
-    </div>
-  );
-}
-
-function EducationStep({
-  step, title, description, icon, color,
-}: {
-  step: number;
-  title: string;
-  description: string;
+function SummaryCard({ icon, label, value, color }: {
   icon: React.ReactNode;
-  color: string;
+  label: string;
+  value: string;
+  color: 'emerald' | 'teal' | 'red' | 'amber' | 'purple';
 }) {
-  const colorClasses: Record<string, { badge: string; text: string }> = {
-    brand: { badge: 'bg-brand-100 text-brand-700', text: 'text-brand-700' },
-    blue: { badge: 'bg-blue-100 text-blue-700', text: 'text-blue-700' },
-    purple: { badge: 'bg-purple-100 text-purple-700', text: 'text-purple-700' },
-    emerald: { badge: 'bg-emerald-100 text-emerald-700', text: 'text-emerald-700' },
-    amber: { badge: 'bg-amber-100 text-amber-700', text: 'text-amber-700' },
+  const styles: Record<string, { bg: string; iconBg: string; text: string; value: string }> = {
+    emerald: { bg: 'bg-emerald-50 border-emerald-200', iconBg: 'bg-emerald-100 text-emerald-600', text: 'text-emerald-600', value: 'text-emerald-800' },
+    teal: { bg: 'bg-teal-50 border-teal-200', iconBg: 'bg-teal-100 text-teal-600', text: 'text-teal-600', value: 'text-teal-800' },
+    red: { bg: 'bg-red-50 border-red-200', iconBg: 'bg-red-100 text-red-600', text: 'text-red-600', value: 'text-red-800' },
+    amber: { bg: 'bg-amber-50 border-amber-200', iconBg: 'bg-amber-100 text-amber-600', text: 'text-amber-600', value: 'text-amber-800' },
+    purple: { bg: 'bg-purple-50 border-purple-200', iconBg: 'bg-purple-100 text-purple-600', text: 'text-purple-600', value: 'text-purple-800' },
   };
-
-  const c = colorClasses[color] || colorClasses.brand;
-
+  const s = styles[color];
   return (
-    <div className="flex items-start gap-3">
-      <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center shrink-0', c.badge)}>
-        {icon}
-      </div>
-      <div>
-        <div className={cn('text-xs font-bold', c.text)}>Step {step}: {title}</div>
-        <div className="text-[11px] text-slate-600 mt-0.5 leading-relaxed">{description}</div>
-      </div>
+    <div className={cn('rounded-xl border p-3', s.bg)}>
+      <div className={cn('w-8 h-8 rounded-lg flex items-center justify-center mb-2', s.iconBg)}>{icon}</div>
+      <div className={cn('text-[11px] font-semibold mb-0.5', s.text)}>{label}</div>
+      <div className={cn('text-sm font-extrabold', s.value)}>{value}</div>
     </div>
   );
 }

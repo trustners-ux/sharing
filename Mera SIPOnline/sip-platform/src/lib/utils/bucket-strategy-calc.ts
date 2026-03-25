@@ -1,132 +1,84 @@
-// ═══════════════════════════════════════════════
-// BUCKET STRATEGY ENGINE — Retirement Income Optimization
-// CFP-Grade Retirement Bucketing Calculator
-// With Bucket Refill/Rebalancing Cascade & Multiple Income Sources
-// ═══════════════════════════════════════════════
+// =============================================================================
+// Bucket Strategy Calculator — Gap-Based Retirement Income Planning
+// Trustner Asset Services Pvt Ltd (ARN-286886)
+// =============================================================================
 
-// ── Interfaces ───────────────────────────────────
+// ── Interfaces ───────────────────────────────────────────────────────────────
 
-export interface RetirementIncomeSource {
-  type: 'pension' | 'rental' | 'scss' | 'nps' | 'swp' | 'epf_pension' | 'other';
+export interface CorpusSource {
+  id: string;
+  type: 'epf' | 'ppf' | 'gratuity' | 'nps_lumpsum' | 'insurance_maturity' | 'fd' | 'mf' | 'esop' | 'savings' | 'other';
+  label: string;
+  amount: number;
+}
+
+export interface RegularIncome {
+  id: string;
+  type: 'pension' | 'nps_annuity' | 'scss' | 'swp' | 'rental' | 'epf_pension' | 'pmvvy' | 'other';
   label: string;
   monthlyAmount: number;
-  startYear?: number;               // Year of retirement when this starts (0 = from day 1)
-  endYear?: number;                  // When it stops (undefined = lifetime)
-  growthRate?: number;               // Annual growth % (e.g. rental income grows 5%)
+  growthRate?: number;
+  startAge?: number;
+  endAge?: number;
 }
 
-export interface RebalancingEvent {
-  year: number;
-  fromBucket: number;
-  toBucket: number;
-  amount: number;
-  trigger: string;
-}
-
-// Lumpsum event during retirement (one-time investment or withdrawal at a specific age)
 export interface LumpsumEvent {
-  id: number;
-  type: 'invest' | 'withdraw';
+  id: string;
+  type: 'investment' | 'withdrawal';
   label: string;
   amount: number;
-  atAge: number;           // Age when this event occurs
+  atAge: number;
 }
 
-export interface BucketStrategyInputs {
+export interface BucketInputs {
+  clientName: string;
   currentAge: number;
   retirementAge: number;
   lifeExpectancy: number;
-  monthlyExpenses: number;
+  currentMonthlyHHE: number;
+  retirementHHE?: number;
   inflationRate: number;
 
   liquidReturn: number;
   debtReturn: number;
-  assetAllocationReturn: number;
+  balancedReturn: number;
   equityReturn: number;
 
-  lumpsumCorpus: number;
-  additionalMonthlyIncome: number;   // Backward compat — used if incomeSources is empty/absent
-  incomeSources?: RetirementIncomeSource[];
+  corpusSources: CorpusSource[];
+  regularIncome: RegularIncome[];
+  lumpsumEvents: LumpsumEvent[];
 
-  existingInvestments: number;
-  preRetirementReturn: number;
-  currentMonthlySavings?: number;   // Monthly SIP/savings the person is already doing
-  lumpsumEvents?: LumpsumEvent[];   // One-time investments/withdrawals during retirement
-  legacyPercent?: number;           // 0-25%, extra corpus buffer to leave for nominee/spouse post LE
+  wantsLegacy: boolean;
+  legacyPercent: number;
 }
 
 export interface BucketAllocation {
   bucketNumber: number;
   label: string;
   timeline: string;
-  monthsFrom: number;
-  monthsTo: number;
-  durationMonths: number;
+  amount: number;
+  amountInLakhs: string;
   returnRate: number;
   products: string[];
-  productCategory: string;
-  requiredCorpus: number;
-  monthlyWithdrawal: number;
-  allocationPercent: number;
   color: string;
-  refillSource: string;
 }
 
-export interface BucketStrategyResult {
-  retirementYears: number;
-  retirementMonths: number;
-  monthlyExpenseAtRetirement: number;
-  netMonthlyNeed: number;
-
-  buckets: BucketAllocation[];
-  totalCorpusNeeded: number;
-  emergencyFund: number;
-
-  lumpsumAvailable: number;
-  shortfall: number;
-  surplus: number;
-
-  yearsToRetirement: number;
-  monthlySIPNeeded: number;
-  stepUpSIPNeeded: number;
-
-  depletionSchedule: DepletionYear[];
-
-  insights: BucketInsight[];
-
-  corpusLastsUntilAge: number;
-  isSustainable: boolean;
-
-  // Income source details
-  incomeSources: RetirementIncomeSource[];
-  totalMonthlyIncomeYear1: number;
-  incomeCoversPercent: number;
-  netMonthlyWithdrawalYear1: number;
-
-  // Rebalancing tracking
-  rebalancingEvents: RebalancingEvent[];
-  bucket4GrowthMultiple: number;
-}
-
-export interface DepletionYear {
+export interface YearlyBreakdown {
   year: number;
   age: number;
-  activeBucket: number;
-  yearStartCorpus: number;
-  grossExpense: number;         // Total expense before income offset
-  annualIncome: number;         // Total income from all sources (pension, rental, SCSS, etc.)
-  annualWithdrawal: number;     // Net withdrawal from buckets (expense - income)
-  annualReturn: number;
-  annualFunding: number;        // Total refill/rebalancing amount transferred between buckets
-  yearEndCorpus: number;
-  cumulativeWithdrawn: number;
-  // Individual bucket balances
-  bucket0Balance: number;
-  bucket1Balance: number;
-  bucket2Balance: number;
-  bucket3Balance: number;
-  bucket4Balance: number;
-  refillEvents: string[];
+  monthlyExpense: number;
+  monthlyIncome: number;
+  monthlyGap: number;
+  annualGapWithdrawal: number;
+  lumpsumEvent?: string;
+  activeBucket: string;
+  bucket0: number;
+  bucket1: number;
+  bucket2: number;
+  bucket3: number;
+  bucket4: number;
+  totalCorpus: number;
+  refillEvent?: string;
 }
 
 export interface BucketInsight {
@@ -135,837 +87,538 @@ export interface BucketInsight {
   description: string;
 }
 
-// ── Constants ────────────────────────────────────
+export interface BucketResult {
+  clientName: string;
+  totalCorpus: number;
+  totalMonthlyIncome: number;
+  monthlyHHEAtRetirement: number;
+  monthlyGap: number;
+  gapPercent: number;
+  incomeCoversPercent: number;
 
-const BUCKET_PRODUCTS: string[][] = [
-  ['Bank FD (1-year)', 'Liquid Fund', 'Savings Account'],
-  ['Liquid Fund', 'Ultra Short Duration Fund', 'Bank FD (1-3 year)', 'Savings Account'],
-  ['Equity Savings Fund', 'Balanced Advantage Fund (BAF)', 'Multi-Asset Allocation Fund (MAAF)', 'Conservative Hybrid Fund'],
-  ['Multi-Asset Fund', 'Flexi Cap Fund', 'Large & Mid Cap Fund', 'Aggressive Hybrid Fund'],
-  ['Multi Cap Fund', 'Flexi Cap Fund', 'Large Cap Fund', 'Value Fund', 'Index Fund (Nifty 50/500)'],
-];
+  corpusForBucketing: number;
+  legacyAmount: number;
+
+  buckets: BucketAllocation[];
+  yearlyBreakdown: YearlyBreakdown[];
+
+  isSustainable: boolean;
+  depletionAge?: number;
+  legacyCorpus: number;
+
+  insights: BucketInsight[];
+}
+
+// ── Constants ────────────────────────────────────────────────────────────────
 
 const BUCKET_LABELS = [
   'Emergency Fund',
   'Short-Term Income',
-  'Medium-Term Income',
-  'Growth Income',
+  'Medium-Term Growth',
   'Long-Term Growth',
+  'Equity Growth Engine',
 ];
 
-const BUCKET_CATEGORIES = [
-  'Liquid/FD',
-  'Liquid/Ultra Short',
-  'Debt/Hybrid',
-  'Balanced/Multi-Asset',
-  'Equity',
+const BUCKET_TIMELINES = [
+  '6 months reserve',
+  'Years 1-3',
+  'Years 4-7',
+  'Years 8-12',
+  'Years 13+',
 ];
 
-const BUCKET_COLORS = [
-  '#EF4444',
-  '#3B82F6',
-  '#8B5CF6',
-  '#F59E0B',
-  '#10B981',
+const BUCKET_PRODUCTS = [
+  ['Bank FD', 'Liquid Fund'],
+  ['Liquid Fund', 'Ultra Short Duration', 'FD'],
+  ['Equity Savings Fund', 'BAF', 'MAAF'],
+  ['Multi-Asset Fund', 'Flexi Cap', 'Large & Mid Cap'],
+  ['Multi Cap Fund', 'Flexi Cap', 'Value Fund'],
 ];
 
-const BUCKET_REFILL = [
-  'Refilled from Bucket 1, 2, or 3',
-  'Refilled from Bucket 2',
-  'Refilled from Bucket 3',
-  'Refilled from Bucket 4',
-  'Growth bucket — feeds all other buckets when they deplete',
-];
+const BUCKET_COLORS = ['#10b981', '#0d9488', '#f59e0b', '#8b5cf6', '#ef4444'];
 
-// Income source type labels for display
-const INCOME_TYPE_LABELS: Record<RetirementIncomeSource['type'], string> = {
-  pension: 'Employer/Govt Pension',
-  rental: 'Rental Income',
-  scss: 'SCSS Interest',
-  nps: 'NPS Annuity',
-  swp: 'SWP from Mutual Fund',
-  epf_pension: 'EPF Pension (EPS-95)',
-  other: 'Other Income',
-};
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
-// ── Helpers ──────────────────────────────────────
+function ceilToLakh(v: number): number {
+  if (v <= 0) return 0;
+  return Math.ceil(v / 100000) * 100000;
+}
 
-/**
- * Present value of a series of inflation-adjusted monthly withdrawals,
- * starting at `baseMonthlyAmount` inflated to `startMonth`, running for
- * `durationMonths`, discounted at `monthlyDiscountRate`.
- */
-function pvOfInflatedWithdrawals(
-  baseMonthlyAmount: number,
-  monthlyInflation: number,
-  monthlyDiscountRate: number,
-  startMonth: number,
-  durationMonths: number
+function formatLakhs(v: number): string {
+  return 'Rs. ' + (v / 100000).toFixed(2) + ' L';
+}
+
+function monthlyRate(annualPercent: number): number {
+  return annualPercent / 100 / 12;
+}
+
+function getMonthlyIncome(
+  source: RegularIncome,
+  age: number,
+  retirementAge: number
 ): number {
-  let pv = 0;
-  for (let m = 0; m < durationMonths; m++) {
-    const month = startMonth + m;
-    const withdrawal = baseMonthlyAmount * Math.pow(1 + monthlyInflation, month);
-    const discount = Math.pow(1 + monthlyDiscountRate, month);
-    pv += withdrawal / discount;
-  }
-  return pv;
+  const startAge = source.startAge ?? retirementAge;
+  const endAge = source.endAge ?? 999;
+  if (age < startAge || age > endAge) return 0;
+
+  const yearsFromStart = age - startAge;
+  const growth = source.growthRate ?? 0;
+  return source.monthlyAmount * Math.pow(1 + growth / 100, yearsFromStart);
 }
 
-/**
- * Present value of inflation-adjusted monthly withdrawals NET of income sources.
- * This accounts for income changes over time (e.g. SCSS ending after 5 years,
- * rental growing, etc.) so each bucket's corpus correctly reflects the actual
- * withdrawal needed during its time horizon.
- */
-function pvOfInflatedWithdrawalsNetOfIncome(
-  baseExpenseAtRetirement: number,
-  monthlyInflation: number,
-  monthlyDiscountRate: number,
-  startMonth: number,
-  durationMonths: number,
-  incomeSources: RetirementIncomeSource[]
-): number {
-  let pv = 0;
-  for (let m = 0; m < durationMonths; m++) {
-    const month = startMonth + m;
-    const retirementYear = Math.floor(month / 12);
-    const grossExpense = baseExpenseAtRetirement * Math.pow(1 + monthlyInflation, month);
-    const monthlyIncome = getMonthlyIncomeForYear(incomeSources, retirementYear);
-    const netWithdrawal = Math.max(0, grossExpense - monthlyIncome);
-    const discount = Math.pow(1 + monthlyDiscountRate, month);
-    pv += netWithdrawal / discount;
-  }
-  return pv;
-}
+// ── Main Calculator ──────────────────────────────────────────────────────────
 
-/**
- * Average monthly withdrawal for a bucket (simple average of all
- * inflation-adjusted withdrawals over the bucket's duration).
- */
-function avgMonthlyWithdrawal(
-  baseMonthlyAmount: number,
-  monthlyInflation: number,
-  startMonth: number,
-  durationMonths: number
-): number {
-  if (durationMonths <= 0) return 0;
-  let total = 0;
-  for (let m = 0; m < durationMonths; m++) {
-    total += baseMonthlyAmount * Math.pow(1 + monthlyInflation, startMonth + m);
-  }
-  return total / durationMonths;
-}
-
-/**
- * PMT — fixed monthly payment needed to accumulate `fv` in `n` months
- * at monthly rate `r`.
- */
-function pmt(monthlyRate: number, months: number, fv: number): number {
-  if (monthlyRate === 0) return fv / months;
-  return (fv * monthlyRate) / (Math.pow(1 + monthlyRate, months) - 1);
-}
-
-/**
- * Step-up SIP — monthly SIP starting amount that grows by `stepUpPct`
- * annually and accumulates to `targetFV` in `years` years at `annualReturn`.
- */
-function stepUpSIP(
-  annualReturn: number,
-  years: number,
-  stepUpPct: number,
-  targetFV: number
-): number {
-  const r = annualReturn / 100 / 12;
-  const g = stepUpPct / 100;
-
-  let fv1 = 0;
-  for (let y = 0; y < years; y++) {
-    const yearlyMultiplier = Math.pow(1 + g, y);
-    for (let m = 0; m < 12; m++) {
-      const monthsRemaining = (years - y) * 12 - m;
-      if (monthsRemaining <= 0) continue;
-      fv1 += yearlyMultiplier * Math.pow(1 + r, monthsRemaining);
-    }
-  }
-
-  return fv1 > 0 ? targetFV / fv1 : 0;
-}
-
-/**
- * Calculate total monthly income from all active income sources for a given
- * retirement year (0-indexed: year 0 = first year of retirement).
- */
-function getMonthlyIncomeForYear(
-  sources: RetirementIncomeSource[],
-  retirementYear: number
-): number {
-  let total = 0;
-  for (const src of sources) {
-    const startYr = src.startYear ?? 0;
-    const endYr = src.endYear ?? Infinity;
-    if (retirementYear < startYr || retirementYear >= endYr) continue;
-
-    const yearsActive = retirementYear - startYr;
-    const growth = src.growthRate ?? 0;
-    total += src.monthlyAmount * Math.pow(1 + growth / 100, yearsActive);
-  }
-  return total;
-}
-
-/**
- * Convert legacy additionalMonthlyIncome into a single income source,
- * or use the provided incomeSources array.
- */
-function resolveIncomeSources(inputs: BucketStrategyInputs): RetirementIncomeSource[] {
-  if (inputs.incomeSources && inputs.incomeSources.length > 0) {
-    return inputs.incomeSources;
-  }
-  if (inputs.additionalMonthlyIncome > 0) {
-    return [{
-      type: 'other',
-      label: 'Monthly Income',
-      monthlyAmount: inputs.additionalMonthlyIncome,
-      startYear: 0,
-      growthRate: 0,
-    }];
-  }
-  return [];
-}
-
-/**
- * Format a number as lakhs/crores for display in refill events.
- */
-function formatLakhs(amount: number): string {
-  if (amount >= 10000000) return `${(amount / 10000000).toFixed(2)}Cr`;
-  if (amount >= 100000) return `${(amount / 100000).toFixed(1)}L`;
-  if (amount >= 1000) return `${(amount / 1000).toFixed(0)}K`;
-  return `${Math.round(amount)}`;
-}
-
-// ── Main Calculator ──────────────────────────────
-
-export function calculateBucketStrategy(
-  inputs: BucketStrategyInputs
-): BucketStrategyResult {
+export function calculateBucketStrategy(inputs: BucketInputs): BucketResult {
   const {
+    clientName,
     currentAge,
     retirementAge,
     lifeExpectancy,
-    monthlyExpenses,
+    currentMonthlyHHE,
+    retirementHHE,
     inflationRate,
     liquidReturn,
-    debtReturn,
-    assetAllocationReturn,
+    balancedReturn,
     equityReturn,
-    lumpsumCorpus,
-    existingInvestments,
-    preRetirementReturn,
+    corpusSources,
+    regularIncome,
+    lumpsumEvents,
+    wantsLegacy,
+    legacyPercent,
   } = inputs;
 
-  const incomeSources = resolveIncomeSources(inputs);
+  const yearsToRetirement = Math.max(retirementAge - currentAge, 0);
+  const retirementYears = lifeExpectancy - retirementAge;
 
-  const yearsToRetirement = Math.max(0, retirementAge - currentAge);
-  const retirementYears = Math.max(0, lifeExpectancy - retirementAge);
-  const retirementMonths = retirementYears * 12;
+  // ── Step 1: Total Corpus ───────────────────────────────────────────────
+  const totalCorpus = corpusSources.reduce((sum, s) => sum + s.amount, 0);
 
-  // 1. Future expenses at retirement
-  const monthlyExpenseAtRetirement =
-    monthlyExpenses * Math.pow(1 + inflationRate / 100, yearsToRetirement);
+  // ── Step 2: Monthly HHE at Retirement ──────────────────────────────────
+  const monthlyHHEAtRetirement =
+    retirementHHE && retirementHHE > 0
+      ? retirementHHE
+      : currentMonthlyHHE * Math.pow(1 + inflationRate / 100, yearsToRetirement);
 
-  // 2. Year-1 income from all sources
-  const totalMonthlyIncomeYear1 = getMonthlyIncomeForYear(incomeSources, 0);
+  // ── Step 3: Total Monthly Income at Retirement ─────────────────────────
+  const totalMonthlyIncome = regularIncome.reduce(
+    (sum, src) => sum + getMonthlyIncome(src, retirementAge, retirementAge),
+    0
+  );
 
-  // 3. Net monthly need (what must come from buckets)
-  const netMonthlyNeed = Math.max(0, monthlyExpenseAtRetirement - totalMonthlyIncomeYear1);
+  // ── Step 4: Gap Analysis ───────────────────────────────────────────────
+  const monthlyGap = Math.max(monthlyHHEAtRetirement - totalMonthlyIncome, 0);
+  const gapPercent =
+    monthlyHHEAtRetirement > 0
+      ? (monthlyGap / monthlyHHEAtRetirement) * 100
+      : 0;
+  const incomeCoversPercent = 100 - gapPercent;
 
-  // Income coverage percentage
-  const incomeCoversPercent = monthlyExpenseAtRetirement > 0
-    ? Math.round((totalMonthlyIncomeYear1 / monthlyExpenseAtRetirement) * 10000) / 100
+  // If no gap, return early
+  if (monthlyGap <= 0) {
+    return buildNoGapResult(inputs, totalCorpus, monthlyHHEAtRetirement, totalMonthlyIncome);
+  }
+
+  // ── Step 5: Corpus for Bucketing ───────────────────────────────────────
+  const legacyAmount = wantsLegacy
+    ? Math.round((legacyPercent / 100) * totalCorpus)
     : 0;
+  const corpusForBucketing = totalCorpus - legacyAmount;
 
-  const monthlyInflation = inflationRate / 100 / 12;
-  const monthlyLiquidReturn = liquidReturn / 100 / 12;
-  const monthlyDebtReturn = debtReturn / 100 / 12;
-  const monthlyAAReturn = assetAllocationReturn / 100 / 12;
-  const monthlyEquityReturn = equityReturn / 100 / 12;
+  // ── Step 6: Bucket Allocation ──────────────────────────────────────────
+  const bucketReturnRates = [liquidReturn, liquidReturn, balancedReturn, equityReturn, equityReturn];
 
-  // ── Helper: round UP to next lakh ──
-  const ceilToLakh = (v: number) => Math.ceil(v / 100000) * 100000;
+  // B0: 6 months of FULL HHE (emergency covers everything)
+  const b0Raw = 6 * monthlyHHEAtRetirement;
 
-  // ── Bucket 0 — Emergency Fund (6 months expenses in Bank FD/Liquid) ──
-  // Always kept untouched unless all other buckets are depleted
-  const b0Duration = 6;
-  const emergencyFundRaw = netMonthlyNeed * b0Duration;
-  const emergencyFund = ceilToLakh(emergencyFundRaw);
+  // B1: 3 years of gap, inflation-adjusted across years 1-3
+  let b1Raw = 0;
+  for (let yr = 0; yr < 3; yr++) {
+    const adjustedGap = monthlyGap * Math.pow(1 + inflationRate / 100, yr);
+    b1Raw += adjustedGap * 12;
+  }
 
-  // ── Bucket 1 — Short-Term Income (Years 1-3, Liquid/Ultra Short/FD) ──
-  // Exact amount needed for 36 months of inflation-adjusted withdrawals net of income
-  const b1Duration = Math.min(36, retirementMonths);
-  const bucket1Raw = pvOfInflatedWithdrawalsNetOfIncome(
-    monthlyExpenseAtRetirement, monthlyInflation, monthlyLiquidReturn, 0, b1Duration, incomeSources
-  );
-  const bucket1Corpus = ceilToLakh(bucket1Raw);
+  const b0 = ceilToLakh(b0Raw);
+  const b1 = ceilToLakh(b1Raw);
 
-  // ── Total needed for B0 + B1 (fixed allocation) ──
-  const fixedAllocation = emergencyFund + bucket1Corpus;
+  const remaining = Math.max(corpusForBucketing - b0 - b1, 0);
+  const b2 = ceilToLakh(remaining * 0.35);
+  const b3 = ceilToLakh(remaining * 0.35);
+  const b4 = Math.max(corpusForBucketing - b0 - b1 - b2 - b3, 0);
 
-  // ── Remaining corpus: split 35% / 35% / 30% into B2 / B3 / B4 ──
-  // This allows B2-B4 to compound at higher returns and potentially leave
-  // a legacy corpus for spouse/dependents beyond life expectancy
-  const totalRetirementNeed = pvOfInflatedWithdrawalsNetOfIncome(
-    monthlyExpenseAtRetirement, monthlyInflation, monthlyLiquidReturn, 0, retirementMonths, incomeSources
-  );
-  // Legacy buffer: extra corpus to leave for nominee/spouse after life expectancy
-  const legacyMultiplier = 1 + (inputs.legacyPercent || 0) / 100;
-  const totalCorpusNeeded = ceilToLakh((fixedAllocation + Math.max(0, totalRetirementNeed - bucket1Raw)) * legacyMultiplier);
+  const bucketAmounts = [b0, b1, b2, b3, b4];
 
-  const remainingForGrowth = Math.max(0, totalCorpusNeeded - fixedAllocation);
-  const bucket2Corpus = ceilToLakh(remainingForGrowth * 0.35); // 35% in Equity Savings/BAF/MAAF
-  const bucket3Corpus = ceilToLakh(remainingForGrowth * 0.35); // 35% in Multi-Asset/Flexi/Large & Mid
-  const bucket4Corpus = Math.max(0, remainingForGrowth - bucket2Corpus - bucket3Corpus); // ~30% in Multi Cap/Equity
-
-  // Allocation percentages — actualTotal is the true totalCorpusNeeded
-  const actualTotal = emergencyFund + bucket1Corpus + bucket2Corpus + bucket3Corpus + bucket4Corpus;
-  // Override totalCorpusNeeded to match the actual sum of all 5 buckets (after rounding up)
-  const totalCorpusNeededFinal = actualTotal;
-  const pct = (v: number) => (actualTotal > 0 ? Math.round((v / actualTotal) * 10000) / 100 : 0);
-
-  // Build bucket allocations
-  const bucketCorpuses = [emergencyFund, bucket1Corpus, bucket2Corpus, bucket3Corpus, bucket4Corpus];
-  const bucketReturns = [liquidReturn, liquidReturn, debtReturn, assetAllocationReturn, equityReturn];
-  const bucketTimelines = [
-    '6 months (Emergency)',
-    `Years 1-3 (${b1Duration} months)`,
-    'Years 4-6 (Growth Phase 1)',
-    'Years 7-10 (Growth Phase 2)',
-    'Years 10+ (Long-Term Equity)',
-  ];
-  const bucketMonthsFrom = [0, 0, 36, 72, 120];
-  const bucketMonthsTo = [5, 35, 71, 119, retirementMonths - 1];
-  const bucketDurations = [6, b1Duration, 36, 48, Math.max(0, retirementMonths - 120)];
-
-  const buckets: BucketAllocation[] = Array.from({ length: 5 }, (_, i) => ({
+  const buckets: BucketAllocation[] = bucketAmounts.map((amount, i) => ({
     bucketNumber: i,
     label: BUCKET_LABELS[i],
-    timeline: bucketTimelines[i],
-    monthsFrom: bucketMonthsFrom[i],
-    monthsTo: bucketMonthsTo[i],
-    durationMonths: bucketDurations[i],
-    returnRate: bucketReturns[i],
+    timeline: BUCKET_TIMELINES[i],
+    amount,
+    amountInLakhs: formatLakhs(amount),
+    returnRate: bucketReturnRates[i],
     products: BUCKET_PRODUCTS[i],
-    productCategory: BUCKET_CATEGORIES[i],
-    requiredCorpus: bucketCorpuses[i],
-    monthlyWithdrawal: i === 0
-      ? Math.round(netMonthlyNeed)
-      : Math.round(avgMonthlyWithdrawal(netMonthlyNeed, monthlyInflation, bucketMonthsFrom[i], bucketDurations[i])),
-    allocationPercent: pct(bucketCorpuses[i]),
     color: BUCKET_COLORS[i],
-    refillSource: BUCKET_REFILL[i],
   }));
 
-  // SIP calculation (pre-retirement)
-  let monthlySIPNeeded = 0;
-  let stepUpSIPNeeded = 0;
+  // ── Step 7: Year-by-Year Simulation ────────────────────────────────────
+  const yearlyBreakdown: YearlyBreakdown[] = [];
+  const bal = [b0, b1, b2, b3, b4];
 
-  const monthlyRate = preRetirementReturn / 100 / 12;
-  const totalMonths = yearsToRetirement * 12;
+  for (let yr = 0; yr < retirementYears; yr++) {
+    const age = retirementAge + yr;
+    const monthlyExpense = monthlyHHEAtRetirement * Math.pow(1 + inflationRate / 100, yr);
 
-  // FV of existing lumpsum investments
-  const fvExisting =
-    yearsToRetirement > 0 && existingInvestments > 0
-      ? existingInvestments * Math.pow(1 + monthlyRate, totalMonths)
-      : existingInvestments;
+    const monthlyInc = regularIncome.reduce(
+      (sum, src) => sum + getMonthlyIncome(src, age, retirementAge),
+      0
+    );
 
-  // FV of current monthly savings/SIPs (if person is already saving regularly)
-  const currentMonthlySavings = inputs.currentMonthlySavings || 0;
-  const fvMonthlySavings =
-    yearsToRetirement > 0 && currentMonthlySavings > 0
-      ? currentMonthlySavings * ((Math.pow(1 + monthlyRate, totalMonths) - 1) / monthlyRate)
-      : 0;
+    const gap = Math.max(monthlyExpense - monthlyInc, 0);
+    let annualWithdrawal = 0;
+    let activeBucket = 'B1';
+    const refillEvents: string[] = [];
 
-  // Total projected corpus at retirement from existing savings + ongoing SIPs
-  const projectedFromSavings = fvExisting + fvMonthlySavings;
+    // Month-by-month simulation
+    for (let m = 0; m < 12; m++) {
+      // Grow each bucket
+      for (let bi = 0; bi < 5; bi++) {
+        if (bal[bi] > 0) {
+          bal[bi] *= 1 + monthlyRate(bucketReturnRates[bi]);
+        }
+      }
 
-  // Available corpus at retirement:
-  // All sources are ADDITIVE:
-  // - Lumpsum: one-time corpus at retirement (inheritance, property sale, gratuity, etc.)
-  // - FV of existing savings: current investments compounded to retirement
-  // - FV of monthly savings: ongoing SIPs compounded to retirement
-  // If nothing is provided at all, assume ideal corpus (no shortfall)
-  const totalAvailable = lumpsumCorpus + fvExisting + fvMonthlySavings;
-  let availableCorpus: number;
-  if (totalAvailable > 0) {
-    availableCorpus = totalAvailable;
-  } else {
-    availableCorpus = totalCorpusNeededFinal; // Assume ideal if nothing provided
+      // Withdraw gap from lowest available non-emergency bucket
+      let remaining = gap;
+      for (let bi = 1; bi <= 4; bi++) {
+        if (remaining <= 0) break;
+        if (bal[bi] <= 0) continue;
+        const take = Math.min(bal[bi], remaining);
+        bal[bi] -= take;
+        remaining -= take;
+        annualWithdrawal += take;
+        activeBucket = `B${bi}`;
+      }
+      if (remaining > 0) {
+        activeBucket = 'Depleted';
+      }
+
+      // Refill logic: cascade when a bucket empties
+      if (bal[1] <= 0 && bal[2] > 0) {
+        const refillAmt = Math.min(bal[2], gap * 36);
+        bal[1] += refillAmt;
+        bal[2] -= refillAmt;
+        refillEvents.push(`B2->B1: ${formatLakhs(refillAmt)}`);
+      }
+      if (bal[2] <= 0 && bal[3] > 0) {
+        const refillAmt = Math.min(bal[3], gap * 36);
+        bal[2] += refillAmt;
+        bal[3] -= refillAmt;
+        refillEvents.push(`B3->B2: ${formatLakhs(refillAmt)}`);
+      }
+      if (bal[3] <= 0 && bal[4] > 0) {
+        const refillAmt = Math.min(bal[4], gap * 48);
+        bal[3] += refillAmt;
+        bal[4] -= refillAmt;
+        refillEvents.push(`B4->B3: ${formatLakhs(refillAmt)}`);
+      }
+    }
+
+    // Lumpsum events at this age
+    let lumpsumEventStr: string | undefined;
+    const eventsThisYear = lumpsumEvents.filter((e) => e.atAge === age);
+    for (const ev of eventsThisYear) {
+      if (ev.type === 'investment') {
+        bal[4] += ev.amount;
+        lumpsumEventStr = `${ev.label} +${formatLakhs(ev.amount)}`;
+      } else {
+        let toDeduct = ev.amount;
+        for (let bi = 4; bi >= 1; bi--) {
+          if (toDeduct <= 0) break;
+          const deducted = Math.min(bal[bi], toDeduct);
+          bal[bi] -= deducted;
+          toDeduct -= deducted;
+        }
+        lumpsumEventStr = `${ev.label} -${formatLakhs(ev.amount)}`;
+      }
+    }
+
+    const totalBal = bal[0] + bal[1] + bal[2] + bal[3] + bal[4];
+
+    yearlyBreakdown.push({
+      year: yr + 1,
+      age,
+      monthlyExpense: Math.round(monthlyExpense),
+      monthlyIncome: Math.round(monthlyInc),
+      monthlyGap: Math.round(gap),
+      annualGapWithdrawal: Math.round(annualWithdrawal),
+      lumpsumEvent: lumpsumEventStr,
+      activeBucket,
+      bucket0: Math.round(bal[0]),
+      bucket1: Math.round(bal[1]),
+      bucket2: Math.round(bal[2]),
+      bucket3: Math.round(bal[3]),
+      bucket4: Math.round(bal[4]),
+      totalCorpus: Math.round(totalBal),
+      refillEvent: refillEvents.length > 0 ? refillEvents[refillEvents.length - 1] : undefined,
+    });
   }
 
-  const shortfall = Math.max(0, totalCorpusNeededFinal - availableCorpus);
-  const surplus = Math.max(0, availableCorpus - totalCorpusNeededFinal);
+  // ── Step 8: Sustainability ─────────────────────────────────────────────
+  const finalTotal = bal[0] + bal[1] + bal[2] + bal[3] + bal[4];
+  const legacyCorpus = Math.round(finalTotal) + legacyAmount;
+  const isSustainable = finalTotal > 0;
 
-  // SIP needed = gap between available and needed
-  const sipTarget = Math.max(0, totalCorpusNeededFinal - availableCorpus);
-  if (yearsToRetirement > 0 && sipTarget > 0) {
-    monthlySIPNeeded = Math.round(
-      pmt(preRetirementReturn / 100 / 12, yearsToRetirement * 12, sipTarget)
+  let depletionAge: number | undefined;
+  if (!isSustainable) {
+    const depletedRow = yearlyBreakdown.find(
+      (row) => row.bucket1 + row.bucket2 + row.bucket3 + row.bucket4 <= 0
     );
-    stepUpSIPNeeded = Math.round(
-      stepUpSIP(preRetirementReturn, yearsToRetirement, 10, sipTarget)
-    );
+    depletionAge = depletedRow?.age;
   }
 
-  // Month-by-month depletion simulation with bucket refill cascade
-  const startingCorpus = availableCorpus;
-  const cascadeResult = buildDepletionScheduleWithCascade(
-    retirementAge,
-    retirementYears,
-    netMonthlyNeed,
-    inflationRate,
-    bucketCorpuses,
-    bucketReturns,
-    startingCorpus,
-    incomeSources,
-    monthlyExpenseAtRetirement,
-    inputs.lumpsumEvents
-  );
-
-  const { depletionSchedule, rebalancingEvents, bucket4InitialBalance } = cascadeResult;
-
-  // Sustainability check
-  const lastYear = depletionSchedule.length > 0
-    ? depletionSchedule[depletionSchedule.length - 1]
-    : null;
-  const corpusLastsUntilAge = lastYear
-    ? (lastYear.yearEndCorpus > 0 ? retirementAge + retirementYears : findDepletionAge(depletionSchedule, retirementAge))
-    : retirementAge;
-  const isSustainable = corpusLastsUntilAge >= lifeExpectancy;
-
-  // Bucket 4 growth multiple
-  const finalB4 = lastYear ? lastYear.bucket4Balance : 0;
-  const bucket4GrowthMultiple = bucket4InitialBalance > 0
-    ? Math.round((finalB4 / bucket4InitialBalance) * 100) / 100
-    : 0;
-
-  // Insights
+  // ── Step 9: Insights ───────────────────────────────────────────────────
   const insights = generateInsights(
     inputs,
-    totalCorpusNeededFinal,
-    surplus,
-    shortfall,
-    isSustainable,
-    corpusLastsUntilAge,
-    incomeSources,
-    totalMonthlyIncomeYear1,
-    monthlyExpenseAtRetirement,
+    monthlyHHEAtRetirement,
+    totalMonthlyIncome,
+    monthlyGap,
     incomeCoversPercent,
-    rebalancingEvents,
-    bucket4InitialBalance,
-    finalB4,
-    bucket4GrowthMultiple
+    isSustainable,
+    depletionAge,
+    legacyCorpus,
+    corpusForBucketing,
+    retirementYears
   );
 
   return {
-    retirementYears,
-    retirementMonths,
-    monthlyExpenseAtRetirement: Math.round(monthlyExpenseAtRetirement),
-    netMonthlyNeed: Math.round(netMonthlyNeed),
+    clientName,
+    totalCorpus,
+    totalMonthlyIncome: Math.round(totalMonthlyIncome),
+    monthlyHHEAtRetirement: Math.round(monthlyHHEAtRetirement),
+    monthlyGap: Math.round(monthlyGap),
+    gapPercent: Math.round(gapPercent * 10) / 10,
+    incomeCoversPercent: Math.round(incomeCoversPercent * 10) / 10,
+    corpusForBucketing,
+    legacyAmount,
     buckets,
-    totalCorpusNeeded: totalCorpusNeededFinal,
-    emergencyFund,
-    lumpsumAvailable: availableCorpus,
-    shortfall,
-    surplus,
-    yearsToRetirement,
-    monthlySIPNeeded,
-    stepUpSIPNeeded,
-    depletionSchedule,
-    insights,
-    corpusLastsUntilAge,
+    yearlyBreakdown,
     isSustainable,
-    incomeSources,
-    totalMonthlyIncomeYear1: Math.round(totalMonthlyIncomeYear1),
-    incomeCoversPercent,
-    netMonthlyWithdrawalYear1: Math.round(netMonthlyNeed),
-    rebalancingEvents,
-    bucket4GrowthMultiple,
+    depletionAge,
+    legacyCorpus,
+    insights,
   };
 }
 
-// ── Depletion Schedule with Bucket Cascade Refill ─────────────
+// ── No-Gap Result ────────────────────────────────────────────────────────────
 
-interface CascadeResult {
-  depletionSchedule: DepletionYear[];
-  rebalancingEvents: RebalancingEvent[];
-  bucket4InitialBalance: number;
-}
+function buildNoGapResult(
+  inputs: BucketInputs,
+  totalCorpus: number,
+  monthlyHHE: number,
+  totalMonthlyIncome: number
+): BucketResult {
+  const retirementYears = inputs.lifeExpectancy - inputs.retirementAge;
+  const bucketReturnRates = [inputs.liquidReturn, inputs.liquidReturn, inputs.balancedReturn, inputs.equityReturn, inputs.equityReturn];
 
-function buildDepletionScheduleWithCascade(
-  retirementAge: number,
-  retirementYears: number,
-  netMonthlyNeedAtRetirement: number,
-  inflationRate: number,
-  bucketCorpuses: number[],
-  bucketReturnRates: number[],
-  startingCorpus: number,
-  incomeSources: RetirementIncomeSource[],
-  monthlyExpenseAtRetirement: number,
-  lumpsumEvents?: LumpsumEvent[]
-): CascadeResult {
-  const schedule: DepletionYear[] = [];
-  const allRebalancingEvents: RebalancingEvent[] = [];
+  const b0 = ceilToLakh(6 * monthlyHHE);
+  const rem = Math.max(totalCorpus - b0, 0);
+  const b2 = ceilToLakh(rem * 0.3);
+  const b3 = ceilToLakh(rem * 0.35);
+  const b4 = Math.max(rem - b2 - b3, 0);
+  const bucketAmounts = [b0, 0, b2, b3, b4];
 
-  // Initialize each bucket with its allocated corpus.
-  // Scale proportionally if user has more or less than needed.
-  const allocatedTotal = bucketCorpuses.reduce((s, v) => s + v, 0);
-  const scaleFactor = allocatedTotal > 0 ? startingCorpus / allocatedTotal : 1;
+  const buckets: BucketAllocation[] = bucketAmounts.map((amount, i) => ({
+    bucketNumber: i,
+    label: BUCKET_LABELS[i],
+    timeline: BUCKET_TIMELINES[i],
+    amount,
+    amountInLakhs: formatLakhs(amount),
+    returnRate: bucketReturnRates[i],
+    products: BUCKET_PRODUCTS[i],
+    color: BUCKET_COLORS[i],
+  }));
 
-  // Bucket balances: each bucket gets its proportional share
-  const bal = bucketCorpuses.map(c => c * scaleFactor);
+  const yearlyBreakdown: YearlyBreakdown[] = [];
+  const bal = [...bucketAmounts];
 
-  // Monthly return rates for each bucket
-  const monthlyRates = bucketReturnRates.map(r => r / 100 / 12);
-  const monthlyInflation = inflationRate / 100 / 12;
+  for (let yr = 0; yr < retirementYears; yr++) {
+    const age = inputs.retirementAge + yr;
+    const monthlyExpense = monthlyHHE * Math.pow(1 + inputs.inflationRate / 100, yr);
+    const monthlyInc = inputs.regularIncome.reduce(
+      (sum, src) => sum + getMonthlyIncome(src, age, inputs.retirementAge),
+      0
+    );
 
-  const bucket4Initial = bal[4];
-  let cumWithdrawn = 0;
-
-  for (let y = 1; y <= retirementYears; y++) {
-    const age = retirementAge + y;
-    const yearRefillEvents: string[] = [];
-    let yearWithdrawal = 0;
-    let yearReturn = 0;
-    let yearGrossExpense = 0;
-    let yearIncome = 0;
-    let yearFunding = 0;
-
-    // Process lumpsum events at this age (before monthly simulation)
-    if (lumpsumEvents && lumpsumEvents.length > 0) {
-      for (const ev of lumpsumEvents) {
-        if (ev.atAge === age && ev.amount > 0) {
-          if (ev.type === 'invest') {
-            // Add investment to Bucket 4 (highest growth) for compounding
-            bal[4] += ev.amount;
-            yearFunding += ev.amount;
-            yearRefillEvents.push(`+Rs.${formatLakhs(ev.amount)} ${ev.label || 'Lumpsum'}`);
-          } else {
-            // Withdrawal: deduct from highest bucket first (B4 -> B3 -> B2 -> B1)
-            let rem = ev.amount;
-            for (let b = 4; b >= 1; b--) {
-              if (rem <= 0) break;
-              const deducted = Math.min(bal[b], rem);
-              bal[b] -= deducted;
-              rem -= deducted;
-            }
-            yearWithdrawal += ev.amount;
-            yearRefillEvents.push(`-Rs.${formatLakhs(ev.amount)} ${ev.label || 'Withdrawal'}`);
-          }
-        }
-      }
+    for (let bi = 0; bi < 5; bi++) {
+      bal[bi] *= 1 + bucketReturnRates[bi] / 100;
     }
 
-    const yearStartCorpus = bal.reduce((s, v) => s + v, 0);
-
-    // Simulate 12 months for this year
-    for (let m = 0; m < 12; m++) {
-      const monthIndex = (y - 1) * 12 + m;
-      const retirementYear = y - 1; // 0-indexed retirement year
-
-      // Step 1: Apply monthly return to each bucket
-      for (let b = 0; b < 5; b++) {
-        if (bal[b] > 0) {
-          const monthReturn = bal[b] * monthlyRates[b];
-          bal[b] += monthReturn;
-          yearReturn += monthReturn;
-        }
-      }
-
-      // Step 2: Calculate this month's gross expense (inflation-adjusted)
-      const monthlyExpense = monthlyExpenseAtRetirement * Math.pow(1 + monthlyInflation, monthIndex);
-
-      // Step 3: Calculate income for this month from all sources
-      const monthlyIncome = getMonthlyIncomeForYear(incomeSources, retirementYear);
-
-      // Step 4: Net withdrawal from buckets = expense minus income
-      const netWithdrawal = Math.max(0, monthlyExpense - monthlyIncome);
-      yearWithdrawal += netWithdrawal;
-      yearGrossExpense += monthlyExpense;
-      yearIncome += monthlyIncome;
-
-      // Step 5: Withdraw from Bucket 1 first, then cascade upward
-      // Bucket 0 (emergency) is NOT touched for regular withdrawals
-      let remaining = netWithdrawal;
-      for (let b = 1; b <= 4; b++) {
-        if (remaining <= 0) break;
-        if (bal[b] > 0) {
-          const deducted = Math.min(bal[b], remaining);
-          bal[b] -= deducted;
-          remaining -= deducted;
-          break; // Only deduct from the first bucket that has money
-        }
-      }
-      // Last resort: dip into emergency fund (bucket 0) if all income buckets empty
-      if (remaining > 0 && bal[0] > 0) {
-        const deducted = Math.min(bal[0], remaining);
-        bal[0] -= deducted;
-        remaining -= deducted;
-      }
-    }
-
-    // Step 6: Annual Rebalancing — check ONCE per year (at year-end)
-    // Only refill when a bucket is EMPTY or near-empty (< 1 month's expense)
-    // Transfer 3 years' worth (B2->B1, B3->B2) or 4 years' (B4->B3)
-    // Run cascade only ONCE per level to avoid multiple triggers
-    const yearEndExpense = monthlyExpenseAtRetirement * Math.pow(1 + inflationRate / 100, y);
-    const yearEndIncome = getMonthlyIncomeForYear(incomeSources, y - 1);
-    const yearEndNetNeed = Math.max(0, yearEndExpense - yearEndIncome);
-
-    // B1 depleted -> refill 3 years from B2
-    if (bal[1] < yearEndNetNeed && bal[2] > yearEndNetNeed) {
-      const refillAmount = Math.min(bal[2], yearEndNetNeed * 36);
-      bal[2] -= refillAmount;
-      bal[1] += refillAmount;
-      yearFunding += refillAmount;
-      yearRefillEvents.push(`B2 ->B1: Rs.${formatLakhs(refillAmount)} (3yr)`);
-      allRebalancingEvents.push({
-        year: y, fromBucket: 2, toBucket: 1,
-        amount: Math.round(refillAmount),
-        trigger: 'Bucket 1 depleted -- 3-year refill from Bucket 2',
-      });
-    }
-
-    // B2 depleted -> refill 3 years from B3
-    if (bal[2] < yearEndNetNeed && bal[3] > yearEndNetNeed) {
-      const refillAmount = Math.min(bal[3], yearEndNetNeed * 36);
-      bal[3] -= refillAmount;
-      bal[2] += refillAmount;
-      yearFunding += refillAmount;
-      yearRefillEvents.push(`B3 ->B2: Rs.${formatLakhs(refillAmount)} (3yr)`);
-      allRebalancingEvents.push({
-        year: y, fromBucket: 3, toBucket: 2,
-        amount: Math.round(refillAmount),
-        trigger: 'Bucket 2 depleted -- 3-year refill from Bucket 3',
-      });
-    }
-
-    // B3 depleted -> refill 4 years from B4 (equity growth engine)
-    if (bal[3] < yearEndNetNeed && bal[4] > yearEndNetNeed) {
-      const refillAmount = Math.min(bal[4], yearEndNetNeed * 48);
-      bal[4] -= refillAmount;
-      bal[3] += refillAmount;
-      yearFunding += refillAmount;
-      yearRefillEvents.push(`B4 ->B3: Rs.${formatLakhs(refillAmount)} (4yr)`);
-      allRebalancingEvents.push({
-        year: y, fromBucket: 4, toBucket: 3,
-        amount: Math.round(refillAmount),
-        trigger: 'Bucket 3 depleted -- 4-year refill from Bucket 4 (equity engine)',
-      });
-    }
-
-    cumWithdrawn += yearWithdrawal;
-
-    // Determine active bucket (first bucket with non-trivial balance)
-    let activeBucket = 4; // default if all lower buckets depleted
-    for (let b = 1; b <= 4; b++) {
-      if (bal[b] > 100) { // small threshold to avoid float noise
-        activeBucket = b;
-        break;
-      }
-    }
-
-    const yearEndCorpus = bal.reduce((s, v) => s + Math.max(0, v), 0);
-
-    schedule.push({
-      year: y,
+    yearlyBreakdown.push({
+      year: yr + 1,
       age,
-      activeBucket,
-      yearStartCorpus: Math.round(yearStartCorpus),
-      grossExpense: Math.round(yearGrossExpense),
-      annualIncome: Math.round(yearIncome),
-      annualWithdrawal: Math.round(yearWithdrawal),
-      annualReturn: Math.round(yearReturn),
-      annualFunding: Math.round(yearFunding),
-      yearEndCorpus: Math.round(yearEndCorpus),
-      cumulativeWithdrawn: Math.round(cumWithdrawn),
-      bucket0Balance: Math.round(Math.max(0, bal[0])),
-      bucket1Balance: Math.round(Math.max(0, bal[1])),
-      bucket2Balance: Math.round(Math.max(0, bal[2])),
-      bucket3Balance: Math.round(Math.max(0, bal[3])),
-      bucket4Balance: Math.round(Math.max(0, bal[4])),
-      refillEvents: yearRefillEvents,
+      monthlyExpense: Math.round(monthlyExpense),
+      monthlyIncome: Math.round(monthlyInc),
+      monthlyGap: 0,
+      annualGapWithdrawal: 0,
+      activeBucket: 'None',
+      bucket0: Math.round(bal[0]),
+      bucket1: Math.round(bal[1]),
+      bucket2: Math.round(bal[2]),
+      bucket3: Math.round(bal[3]),
+      bucket4: Math.round(bal[4]),
+      totalCorpus: Math.round(bal[0] + bal[1] + bal[2] + bal[3] + bal[4]),
     });
-
-    if (yearEndCorpus <= 0) break;
   }
+
+  const finalTotal = bal[0] + bal[1] + bal[2] + bal[3] + bal[4];
 
   return {
-    depletionSchedule: schedule,
-    rebalancingEvents: allRebalancingEvents,
-    bucket4InitialBalance: bucket4Initial,
+    clientName: inputs.clientName,
+    totalCorpus,
+    totalMonthlyIncome: Math.round(totalMonthlyIncome),
+    monthlyHHEAtRetirement: Math.round(monthlyHHE),
+    monthlyGap: 0,
+    gapPercent: 0,
+    incomeCoversPercent: 100,
+    corpusForBucketing: totalCorpus,
+    legacyAmount: 0,
+    buckets,
+    yearlyBreakdown,
+    isSustainable: true,
+    legacyCorpus: Math.round(finalTotal),
+    insights: [
+      {
+        type: 'positive',
+        title: 'Income Fully Covers Expenses',
+        description: `Your regular income of Rs. ${Math.round(totalMonthlyIncome).toLocaleString('en-IN')}/month fully covers your estimated expenses of Rs. ${Math.round(monthlyHHE).toLocaleString('en-IN')}/month. Your corpus can remain invested for growth and legacy.`,
+      },
+      {
+        type: 'tip',
+        title: 'Keep Corpus Growing',
+        description: 'Since your income covers expenses, invest your corpus in growth-oriented funds. Consider a mix of Multi-Asset, Flexi Cap, and Value Funds for long-term wealth creation.',
+      },
+      {
+        type: 'positive',
+        title: 'Strong Legacy Potential',
+        description: `At life expectancy of ${inputs.lifeExpectancy}, your corpus could grow to Rs. ${(finalTotal / 100000).toFixed(0)} L — a substantial legacy for your nominees.`,
+      },
+    ],
   };
 }
 
-function findDepletionAge(schedule: DepletionYear[], retirementAge: number): number {
-  for (const row of schedule) {
-    if (row.yearEndCorpus <= 0) return row.age;
-  }
-  return schedule.length > 0
-    ? schedule[schedule.length - 1].age
-    : retirementAge;
-}
-
-// ── Insights Generator ───────────────────────────
+// ── Insights Generator ───────────────────────────────────────────────────────
 
 function generateInsights(
-  inputs: BucketStrategyInputs,
-  totalCorpusNeeded: number,
-  surplus: number,
-  shortfall: number,
-  isSustainable: boolean,
-  corpusLastsUntilAge: number,
-  incomeSources: RetirementIncomeSource[],
-  totalMonthlyIncomeYear1: number,
-  monthlyExpenseAtRetirement: number,
+  inputs: BucketInputs,
+  monthlyHHE: number,
+  totalMonthlyIncome: number,
+  monthlyGap: number,
   incomeCoversPercent: number,
-  rebalancingEvents: RebalancingEvent[],
-  bucket4Initial: number,
-  bucket4Final: number,
-  bucket4GrowthMultiple: number
+  isSustainable: boolean,
+  depletionAge: number | undefined,
+  legacyCorpus: number,
+  corpusForBucketing: number,
+  retirementYears: number
 ): BucketInsight[] {
   const insights: BucketInsight[] = [];
 
-  // 1. Sustainability
-  if (isSustainable) {
+  // 1. Income coverage
+  if (incomeCoversPercent >= 70) {
     insights.push({
       type: 'positive',
-      title: 'Sustainable Strategy',
-      description: 'Your bucket strategy is sustainable  -- corpus lasts through your life expectancy.',
+      title: `Income Covers ${incomeCoversPercent.toFixed(0)}% of Expenses`,
+      description: `Your regular income of Rs. ${Math.round(totalMonthlyIncome).toLocaleString('en-IN')}/month covers most of your expenses. Only the gap of Rs. ${Math.round(monthlyGap).toLocaleString('en-IN')}/month needs corpus funding.`,
+    });
+  } else if (incomeCoversPercent >= 40) {
+    insights.push({
+      type: 'warning',
+      title: `Income Covers Only ${incomeCoversPercent.toFixed(0)}% of Expenses`,
+      description: `Your corpus needs to fund Rs. ${Math.round(monthlyGap).toLocaleString('en-IN')}/month. Consider adding SCSS (Rs. 30L limit, ~8% p.a.) or PMVVY to reduce this gap.`,
     });
   } else {
     insights.push({
       type: 'critical',
-      title: 'Corpus Depletes Early',
-      description: `At current estimates, your corpus runs out at age ${corpusLastsUntilAge}. Consider increasing SIP, reducing expenses, or delaying retirement.`,
+      title: `Income Covers Only ${incomeCoversPercent.toFixed(0)}% of Expenses`,
+      description: `Your corpus has heavy lifting — funding Rs. ${Math.round(monthlyGap).toLocaleString('en-IN')}/month. Consider increasing income sources aggressively before retirement.`,
     });
   }
 
-  // 2. Income coverage
-  if (totalMonthlyIncomeYear1 > 0) {
-    const coverLabel = incomeCoversPercent >= 60 ? 'good' : incomeCoversPercent >= 30 ? 'moderate' : 'insufficient';
-    const activeNames = incomeSources
-      .filter(s => (s.startYear ?? 0) === 0)
-      .map(s => s.label || INCOME_TYPE_LABELS[s.type])
-      .join(' + ');
-    insights.push({
-      type: coverLabel === 'good' ? 'positive' : coverLabel === 'moderate' ? 'tip' : 'warning',
-      title: 'Income Coverage',
-      description: `Your ${activeNames || 'income sources'} cover${incomeSources.length === 1 ? 's' : ''} ${incomeCoversPercent.toFixed(1)}% of Year 1 expenses  -- ${coverLabel}. This reduces withdrawal pressure on your bucket corpus.`,
-    });
-  }
-
-  // 3. SCSS tax tip
-  if (incomeSources.some(s => s.type === 'scss')) {
-    insights.push({
-      type: 'tip',
-      title: 'SCSS Tax Benefit',
-      description: 'SCSS @ 8.2% is tax-efficient for the first Rs.50,000 interest per year under Section 80TTB for senior citizens. Renew after 5 years if the scheme is still available.',
-    });
-  }
-
-  // 4. NPS suggestion
-  if (!incomeSources.some(s => s.type === 'nps') && inputs.currentAge < 60) {
-    insights.push({
-      type: 'tip',
-      title: 'Consider NPS',
-      description: 'Consider NPS for additional tax benefit under Section 80CCD(1B)  -- Rs.50,000 extra deduction over and above Section 80C limit.',
-    });
-  }
-
-  // 5. SWP sustainability check
-  for (const swp of incomeSources.filter(s => s.type === 'swp')) {
-    if (swp.monthlyAmount > monthlyExpenseAtRetirement * 0.5) {
-      insights.push({
-        type: 'warning',
-        title: 'High SWP Withdrawal',
-        description: `Your SWP of Rs.${formatLakhs(swp.monthlyAmount)}/month is substantial. Ensure the underlying mutual fund corpus supports a withdrawal rate below 4% annually for sustainability.`,
-      });
-    }
-  }
-
-  // 6. Bucket 4 growth insight
-  if (bucket4Initial > 0 && bucket4Final > 0 && bucket4GrowthMultiple > 1) {
+  // 2. Sustainability
+  if (isSustainable) {
     insights.push({
       type: 'positive',
-      title: 'Equity Compounding Power',
-      description: `Bucket 4 grew from Rs.${formatLakhs(bucket4Initial)} to Rs.${formatLakhs(bucket4Final)} over retirement (${bucket4GrowthMultiple}x)  -- equity compounding protected your corpus while other buckets funded your income.`,
+      title: 'Corpus is Sustainable',
+      description: `Your bucket strategy sustains withdrawals through age ${inputs.lifeExpectancy}. Remaining corpus of Rs. ${(legacyCorpus / 100000).toFixed(0)} L provides a buffer beyond life expectancy.`,
     });
-  } else if (bucket4Initial > 0 && bucket4Final <= 0) {
-    insights.push({
-      type: 'warning',
-      title: 'Growth Bucket Depleted',
-      description: 'Bucket 4 (equity growth engine) was fully consumed during retirement. This indicates the initial corpus was insufficient for the withdrawal rate.',
-    });
-  }
-
-  // 7. Rebalancing events summary
-  if (rebalancingEvents.length > 0) {
-    insights.push({
-      type: 'tip',
-      title: 'Rebalancing Activity',
-      description: `Rebalancing occurred ${rebalancingEvents.length} time${rebalancingEvents.length === 1 ? '' : 's'} over retirement  -- each time the growth bucket cascaded funds down to sustain your income.`,
-    });
-  }
-
-  // 8. Low equity return warning
-  if (inputs.equityReturn < inputs.inflationRate + 4) {
-    insights.push({
-      type: 'warning',
-      title: 'Low Equity Return Assumption',
-      description: 'Consider higher equity allocation for Bucket 4  -- equity return should ideally be 4%+ above inflation for long-term growth.',
-    });
-  }
-
-  // 9. Strong income base (if >50% coverage and not already flagged)
-  if (incomeCoversPercent > 50 && totalMonthlyIncomeYear1 > 0) {
-    insights.push({
-      type: 'positive',
-      title: 'Strong Income Base',
-      description: 'Your income sources cover over 50% of projected retirement expenses, significantly reducing withdrawal pressure on your corpus.',
-    });
-  }
-
-  // 10. Limited accumulation time
-  if (inputs.retirementAge - inputs.currentAge < 5 && inputs.retirementAge > inputs.currentAge) {
-    insights.push({
-      type: 'warning',
-      title: 'Limited Accumulation Time',
-      description: 'With less than 5 years to retirement, consider a more conservative allocation and focus on building the emergency and short-term buckets first.',
-    });
-  }
-
-  // 11. Surplus
-  if (surplus > 0) {
-    insights.push({
-      type: 'tip',
-      title: 'Corpus Surplus',
-      description: 'You have surplus corpus beyond your bucket needs. Consider allocating it to a healthcare reserve or legacy fund for your family.',
-    });
-  }
-
-  // 12. Shortfall
-  if (shortfall > 0) {
+  } else {
     insights.push({
       type: 'critical',
-      title: 'Corpus Shortfall',
-      description: 'Your available corpus falls short by the required amount. Bridge the gap by increasing savings, working part-time in early retirement, or optimizing expenses.',
+      title: `Corpus Depletes at Age ${depletionAge}`,
+      description: `Your buckets run out ${inputs.lifeExpectancy - (depletionAge ?? inputs.lifeExpectancy)} years before life expectancy. Consider: (a) reducing expenses, (b) increasing income sources, (c) delaying retirement by 2-3 years, or (d) adding more to corpus.`,
     });
   }
 
-  // 13. Emergency fund
+  // 3. Legacy
+  if (inputs.wantsLegacy && inputs.legacyPercent > 0) {
+    const legacyAmt = (inputs.legacyPercent / 100) * inputs.corpusSources.reduce((s, c) => s + c.amount, 0);
+    insights.push({
+      type: 'tip',
+      title: `Legacy Allocation: ${inputs.legacyPercent}%`,
+      description: `Rs. ${(legacyAmt / 100000).toFixed(0)} L set aside for nominees. This is invested separately and not touched for retirement expenses. Review annually.`,
+    });
+  }
+
+  // 4. Tax tips
+  const hasNPS = inputs.corpusSources.some((s) => s.type === 'nps_lumpsum') ||
+    inputs.regularIncome.some((s) => s.type === 'nps_annuity');
+  const hasSCSS = inputs.regularIncome.some((s) => s.type === 'scss');
+
+  if (hasNPS) {
+    insights.push({
+      type: 'tip',
+      title: 'NPS Tax Benefits',
+      description: 'NPS lumpsum (60%) is tax-free on maturity. The annuity portion is taxable as income. Claim deduction under Section 80CCD(1B) for additional Rs. 50,000 before retirement.',
+    });
+  }
+
+  if (hasSCSS) {
+    insights.push({
+      type: 'tip',
+      title: 'SCSS Tax Benefit — Section 80TTB',
+      description: 'Senior citizens get Rs. 50,000 deduction on interest income under Section 80TTB. SCSS interest qualifies. TDS threshold is Rs. 50,000 for senior citizens.',
+    });
+  }
+
+  // 5. Corpus adequacy
+  const annualGap = monthlyGap * 12;
+  const corpusToGapRatio = annualGap > 0 ? corpusForBucketing / annualGap : Infinity;
+
+  if (corpusToGapRatio < retirementYears * 0.5) {
+    insights.push({
+      type: 'critical',
+      title: 'Corpus May Be Insufficient',
+      description: `Your corpus covers roughly ${Math.round(corpusToGapRatio)} years of the gap at current levels (before growth). With ${retirementYears} years of retirement, consider adding more corpus or reducing the gap.`,
+    });
+  } else if (corpusToGapRatio >= retirementYears * 1.5) {
+    insights.push({
+      type: 'positive',
+      title: 'Strong Corpus Position',
+      description: 'Your corpus is well-sized relative to the gap. Even conservative returns should sustain your retirement comfortably. Consider allocating more to growth (B3/B4) for legacy building.',
+    });
+  }
+
+  // 6. Inflation warning
+  if (inputs.inflationRate >= 6) {
+    insights.push({
+      type: 'warning',
+      title: 'High Inflation Assumption',
+      description: `At ${inputs.inflationRate}% inflation, your monthly expenses will double every ${Math.round(72 / inputs.inflationRate)} years. Ensure growth buckets (B3, B4) earn above inflation to maintain purchasing power.`,
+    });
+  }
+
+  // 7. Annual review
   insights.push({
     type: 'tip',
-    title: 'Never Skip the Emergency Fund',
-    description: 'Bucket 0 (Emergency Fund) is critical  -- it prevents forced withdrawals from growth buckets during market downturns or unexpected expenses.',
+    title: 'Annual Review Recommended',
+    description: 'Review your bucket strategy every year. Rebalance if any bucket deviates by more than 10% from plan. Adjust for actual inflation and returns experienced.',
   });
 
   return insights;
