@@ -709,54 +709,58 @@ function buildDepletionScheduleWithCascade(
         remaining -= deducted;
       }
 
-      // Step 6: Refill — ONLY when a bucket is FULLY EMPTY (depleted)
-      // This is the real bucket strategy: let each bucket run its course,
-      // then refill from the next higher bucket which has been compounding
+      // Step 6: Refill — ONLY when a bucket is EMPTY or near-empty
+      // Transfer enough for 3 years (B2->B1, B3->B2) or 4 years (B4->B3)
+      // so rebalancing happens only once every 3-4 years, not annually.
+      // "Near-empty" = less than 1 month's withdrawal remaining.
+      const nearEmpty = netWithdrawal > 0 ? netWithdrawal : 1;
 
-      // When Bucket 1 is empty -> refill with 12 months' worth from Bucket 2
-      if (bal[1] <= 0 && bal[2] > 0) {
-        const refillAmount = Math.min(bal[2], netWithdrawal * 12);
+      // B1 empty/near-empty -> refill 3 years' worth (36 months) from B2
+      if (bal[1] < nearEmpty && bal[2] > 0) {
+        const refillAmount = Math.min(bal[2], netWithdrawal * 36);
         if (refillAmount > 0) {
           bal[2] -= refillAmount;
           bal[1] += refillAmount;
           yearFunding += refillAmount;
-          yearRefillEvents.push(`B2 ->B1: Rs.${formatLakhs(refillAmount)}`);
+          yearRefillEvents.push(`B2 ->B1: Rs.${formatLakhs(refillAmount)} (3yr refill)`);
           allRebalancingEvents.push({
             year: y, fromBucket: 2, toBucket: 1,
             amount: Math.round(refillAmount),
-            trigger: 'Bucket 1 depleted -- refilled from Bucket 2',
+            trigger: 'Bucket 1 depleted -- 3-year refill from Bucket 2',
           });
         }
       }
 
-      // When Bucket 2 is empty -> refill from Bucket 3
-      if (bal[2] <= 0 && bal[3] > 0) {
-        const refillAmount = Math.min(bal[3], netWithdrawal * 12);
+      // B2 empty/near-empty -> refill 3 years' worth (36 months) from B3
+      if (bal[2] < nearEmpty && bal[3] > 0) {
+        const refillAmount = Math.min(bal[3], netWithdrawal * 36);
         if (refillAmount > 0) {
           bal[3] -= refillAmount;
           bal[2] += refillAmount;
           yearFunding += refillAmount;
-          yearRefillEvents.push(`B3 ->B2: Rs.${formatLakhs(refillAmount)}`);
+          yearRefillEvents.push(`B3 ->B2: Rs.${formatLakhs(refillAmount)} (3yr refill)`);
           allRebalancingEvents.push({
             year: y, fromBucket: 3, toBucket: 2,
             amount: Math.round(refillAmount),
-            trigger: 'Bucket 2 depleted -- refilled from Bucket 3',
+            trigger: 'Bucket 2 depleted -- 3-year refill from Bucket 3',
           });
         }
       }
 
-      // When Bucket 3 is empty -> refill from Bucket 4 (the equity growth engine)
-      if (bal[3] <= 0 && bal[4] > 0) {
-        const refillAmount = Math.min(bal[4], netWithdrawal * 12);
+      // B3 empty/near-empty -> refill 4 years' worth (48 months) from B4
+      // B4 is the equity growth engine — give B3 a longer runway (4 years)
+      // so B4 has more time to compound before the next transfer
+      if (bal[3] < nearEmpty && bal[4] > 0) {
+        const refillAmount = Math.min(bal[4], netWithdrawal * 48);
         if (refillAmount > 0) {
           bal[4] -= refillAmount;
           bal[3] += refillAmount;
           yearFunding += refillAmount;
-          yearRefillEvents.push(`B4 ->B3: Rs.${formatLakhs(refillAmount)}`);
+          yearRefillEvents.push(`B4 ->B3: Rs.${formatLakhs(refillAmount)} (4yr refill)`);
           allRebalancingEvents.push({
             year: y, fromBucket: 4, toBucket: 3,
             amount: Math.round(refillAmount),
-            trigger: 'Bucket 3 depleted -- refilled from Bucket 4',
+            trigger: 'Bucket 3 depleted -- 4-year refill from Bucket 4 (equity engine)',
           });
         }
       }
