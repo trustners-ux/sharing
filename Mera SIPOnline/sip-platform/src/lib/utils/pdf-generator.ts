@@ -428,6 +428,14 @@ export async function generateCalculatorPDF({ elementId, title, fileName }: PDFO
     el.style.display = 'none';
   });
 
+  // ─── Show elements marked with data-pdf-show (hidden on screen, visible in PDF) ───
+  const pdfShownElements: { el: HTMLElement; display: string }[] = [];
+  element.querySelectorAll('[data-pdf-show]').forEach((child) => {
+    const el = child as HTMLElement;
+    pdfShownElements.push({ el, display: el.style.display });
+    el.style.display = 'block';
+  });
+
   // Force overflow visible on all descendants
   const constrainedElements: { el: HTMLElement; overflow: string; overflowX: string; overflowY: string; maxHeight: string }[] = [];
   element.querySelectorAll('*').forEach((child) => {
@@ -500,6 +508,7 @@ export async function generateCalculatorPDF({ elementId, title, fileName }: PDFO
   hiddenButtons.forEach(({ el, display }) => { el.style.display = display; });
   hiddenHints.forEach(({ el, display }) => { el.style.display = display; });
   pdfHiddenElements.forEach(({ el, display }) => { el.style.display = display; });
+  pdfShownElements.forEach(({ el, display }) => { el.style.display = display; });
   spacingOverrides.forEach(({ el, prop, original }) => {
     el.style.setProperty(prop, original);
   });
