@@ -40,6 +40,7 @@ export async function createReportQueueEntry(
   const pdfBlob = await put(`reports/pdfs/${id}.pdf`, pdfBuffer, {
     access: 'public',
     addRandomSuffix: false,
+    allowOverwrite: true,
     contentType: 'application/pdf',
   });
 
@@ -50,6 +51,7 @@ export async function createReportQueueEntry(
     {
       access: 'public',
       addRandomSuffix: false,
+    allowOverwrite: true,
       contentType: 'application/json',
     }
   );
@@ -93,6 +95,7 @@ export async function createReportQueueEntry(
   await put(`reports/queue/${id}.json`, JSON.stringify(entry), {
     access: 'public',
     addRandomSuffix: false,
+    allowOverwrite: true,
     contentType: 'application/json',
   });
 
@@ -186,6 +189,7 @@ export async function updateReportEntry(
   await put(`reports/queue/${id}.json`, JSON.stringify(updated), {
     access: 'public',
     addRandomSuffix: false,
+    allowOverwrite: true,
     contentType: 'application/json',
   });
 
@@ -233,6 +237,7 @@ export async function updateReportPdf(
   const blob = await put(`reports/pdfs/${id}.pdf`, pdfBuffer, {
     access: 'public',
     addRandomSuffix: false,
+    allowOverwrite: true,
     contentType: 'application/pdf',
   });
   return blob.url;
