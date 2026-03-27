@@ -226,6 +226,8 @@ export default function SIPShieldPage() {
       swpEnabled,
       swpAmount: swpEnabled ? swpAmount : 0,
       swpFrequency,
+      swpInflationAdjusted: swpEnabled ? swpInflationAdjusted : false,
+      swpInflationRate: 5,
       lumpsumEvents,
     };
     return calculateSIPShield(inputs);
@@ -233,7 +235,7 @@ export default function SIPShieldPage() {
   }, [
     clientName, currentAge, costInflation, monthlySIP, sipFrequency, sipDuration, sipReturn,
     stepUpEnabled, stepUpType, stepUpValue, growthPhaseEnabled, growthPeriod, growthReturn,
-    withdrawalReturn, swpEnabled, swpAmount, swpFrequency,
+    withdrawalReturn, swpEnabled, swpAmount, swpFrequency, swpInflationAdjusted,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     JSON.stringify(costs),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -375,7 +377,7 @@ export default function SIPShieldPage() {
                   </div>
 
                   {/* SIP Amount */}
-                  <NumberInput label={`SIP Amount (${sipFrequency === 'monthly' ? 'per month' : 'per year'})`} value={monthlySIP} onChange={setMonthlySIP} prefix="Rs." step={sipFrequency === 'monthly' ? 500 : 5000} min={sipFrequency === 'monthly' ? 1000 : 12000} max={sipFrequency === 'monthly' ? 500000 : 5000000} />
+                  <NumberInput label={`SIP Amount (${sipFrequency === 'monthly' ? 'per month' : 'per year'})`} value={monthlySIP} onChange={setMonthlySIP} prefix="Rs." step={sipFrequency === 'monthly' ? 500 : 5000} min={sipFrequency === 'monthly' ? 1000 : 12000} max={sipFrequency === 'monthly' ? 1000000 : 10000000} />
 
                   <NumberInput label="SIP Duration" value={sipDuration} onChange={setSipDuration} suffix="years" step={1} min={5} max={40} />
                   <NumberInput label="Expected SIP Return" value={sipReturn} onChange={setSipReturn} suffix="% p.a." step={0.5} min={8} max={18} />

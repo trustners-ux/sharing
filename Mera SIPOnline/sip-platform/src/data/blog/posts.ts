@@ -9032,4 +9032,307 @@ export const blogPosts: BlogPost[] = [
     ],
   },
 
+  // ───────────────────────────── POST 72 ────────────────────────────
+  {
+    id: 'post-072',
+    title: 'What Should Investors Do When the Market Is Falling? A Data-Driven Guide',
+    slug: 'what-should-investors-do-when-market-is-falling-march-2026',
+    excerpt:
+      'BSE Sensex fell 1,600 points to 73,718 (-2.07%) and Nifty 50 dropped 486 points to 22,819 (-2.10%). Total market cap has eroded to Rs 4.22 lakh crore. Panic is everywhere — but history has a clear message for SIP investors.',
+    author: AUTHOR,
+    date: '2026-03-27',
+    category: 'Market Analysis',
+    readTime: '9 min read',
+    tags: ['market correction March 2026', 'what to do market crash', 'SIP during market fall', 'Sensex crash', 'Nifty correction', 'should I stop SIP', 'stay invested', 'rupee cost averaging', 'market volatility strategy'],
+    featured: true,
+    coverGradient: 'from-red-800 to-slate-900',
+    content: [
+      {
+        type: 'paragraph',
+        text: 'March 27, 2026. The BSE Sensex has crashed 1,600 points to close at 73,718 — a single-day fall of 2.07 percent. The Nifty 50 plunged 486 points to 22,819, a 2.10 percent decline. India\'s total market capitalisation has eroded to approximately Rs 4.22 lakh crore. Your portfolio is deep in red. WhatsApp groups are flooding with panic messages. TV anchors are using phrases like "bloodbath" and "carnage." And the only question on every investor\'s mind is: what should I do right now?',
+      },
+      {
+        type: 'callout',
+        variant: 'warning',
+        text: 'Before you make any move — read this entire article. The decisions you make in the next 48 hours could cost you lakhs of rupees over the next decade. Not because the market will crash further, but because panic-driven decisions during corrections have historically been the single biggest destroyer of investor wealth.',
+      },
+      {
+        type: 'heading',
+        text: 'What Is Actually Happening? The Numbers Behind the Noise',
+      },
+      {
+        type: 'paragraph',
+        text: 'Let us separate facts from fear. Here is what the data actually shows as of March 27, 2026:',
+      },
+      {
+        type: 'table',
+        rows: [
+          ['Index / Metric', 'Current Level', 'Change', 'From All-Time High'],
+          ['BSE Sensex', '73,718', '-1,600 pts (-2.07%)', '-14.4% from 86,159'],
+          ['Nifty 50', '22,819', '-486 pts (-2.10%)', '-13.5% from 26,373'],
+          ['Market Cap Lost', 'Rs 4.22 L Cr', 'Single day erosion', 'Over Rs 28 L Cr from peak'],
+          ['India VIX', '~22+', 'Elevated', 'Up 119% YTD'],
+          ['Nifty Midcap 150', 'Deep correction', '-17% from peak', 'Approaching bear territory'],
+          ['Nifty Smallcap 250', 'Bear market', '-22%+ from peak', 'Officially in bear market'],
+        ],
+      },
+      {
+        type: 'paragraph',
+        text: 'Yes, the numbers look scary. But here is what is critical to understand: a 13 to 15 percent correction from all-time highs is not a crash — it is a perfectly normal part of market behaviour. In fact, it is healthy. Markets that never correct eventually form bubbles, and bubbles always end badly. What we are experiencing is the market repricing risk after an extended rally.',
+      },
+      {
+        type: 'heading',
+        text: 'The 7 Things You Should NOT Do Right Now',
+      },
+      {
+        type: 'paragraph',
+        text: 'Before we discuss what to do, let us first address what NOT to do. These are the wealth-destroying mistakes that investors make during every single correction:',
+      },
+      {
+        type: 'list',
+        items: [
+          'DO NOT stop your SIPs. This is the number one mistake. When you stop a SIP during a correction, you are literally saying "I want to buy fewer units at lower prices." That is the opposite of smart investing. Your SIP is buying more units right now — that is a gift, not a curse.',
+          'DO NOT redeem your equity mutual funds. Selling after a 15 percent fall locks in your losses permanently. You are converting a temporary paper loss into a permanent real loss. Every correction in history has recovered. Your redemption cannot be undone.',
+          'DO NOT switch from equity to debt or liquid funds. This "flight to safety" feels logical but destroys returns. You sell equity at the bottom and buy debt at the top. When equity recovers, you miss the bounce entirely. Studies show that missing just the 10 best trading days in a decade reduces your returns by over 50 percent.',
+          'DO NOT check your portfolio every hour. Research from Dalbar Inc. consistently shows that investors who check their portfolio more frequently earn lower returns. Not because of the market, but because frequent checking triggers emotional decisions. Check once a month or once a quarter.',
+          'DO NOT listen to doomsday predictions on social media. For every market correction, there are self-appointed "experts" predicting Sensex 50,000 or Nifty 15,000. In the 2020 COVID crash, predictions said markets would take 5 years to recover. It took 7 months. In 2008, they said a decade. It took 5 years. These predictions are designed to generate clicks, not returns.',
+          'DO NOT try to time the bottom. Nobody — not even the most experienced fund managers — can consistently predict the exact bottom. If you are waiting for the "right time" to invest, you will miss the recovery. Data shows that time in the market beats timing the market in 92 percent of rolling 10-year periods.',
+          'DO NOT make any financial decision based on fear. Fear is not a strategy. Data is. Every piece of data we have from 100 years of market history says: stay invested, keep buying, and let compounding work.',
+        ],
+      },
+      {
+        type: 'heading',
+        text: 'Why Corrections Are Actually GOOD for SIP Investors',
+      },
+      {
+        type: 'paragraph',
+        text: 'Here is a truth that most investors do not understand: market corrections are the SIP investor\'s best friend. This is not motivational talk — it is pure mathematics.',
+      },
+      {
+        type: 'subheading',
+        text: 'The Rupee Cost Averaging Advantage',
+      },
+      {
+        type: 'paragraph',
+        text: 'When the market falls 15 percent, your SIP instalment buys approximately 18 percent more mutual fund units at the lower NAV. These extra units sit in your portfolio, compounding quietly. When the market recovers — as it always does — those extra units generate outsized returns.',
+      },
+      {
+        type: 'table',
+        rows: [
+          ['NAV Scenario', 'Monthly SIP', 'Units Purchased', 'Extra Units vs Normal'],
+          ['Normal NAV: Rs 50', 'Rs 10,000', '200 units', '—'],
+          ['10% correction: Rs 45', 'Rs 10,000', '222 units', '+22 units (11% more)'],
+          ['15% correction: Rs 42.50', 'Rs 10,000', '235 units', '+35 units (17.5% more)'],
+          ['20% correction: Rs 40', 'Rs 10,000', '250 units', '+50 units (25% more)'],
+          ['30% correction: Rs 35', 'Rs 10,000', '286 units', '+86 units (43% more)'],
+        ],
+      },
+      {
+        type: 'callout',
+        variant: 'info',
+        text: 'If you invest Rs 10,000 monthly and the market stays 15% below normal for just 6 months, you accumulate 210 extra units. At a NAV of Rs 60 (when the market recovers and grows further), those extra units alone are worth Rs 12,600. That is Rs 12,600 of bonus wealth — just because you did not panic and kept investing during the correction.',
+      },
+      {
+        type: 'subheading',
+        text: 'Historical Proof: SIPs Started During Corrections Generate Superior Returns',
+      },
+      {
+        type: 'paragraph',
+        text: 'WhiteOak Capital research demonstrates that an SIP started at the January 2008 market peak — the absolute worst timing possible — generated a 12.96 percent XIRR by 2025. More remarkably, this investor created MORE absolute wealth than someone who started investing at the March 2009 bottom. Why? Because the peak investor accumulated more units during the 60 percent crash. The math is clear: bad timing with discipline beats good timing with panic.',
+      },
+      {
+        type: 'heading',
+        text: 'Every Correction in Indian Market History Has Recovered',
+      },
+      {
+        type: 'paragraph',
+        text: 'Let us look at every major correction in the last 25 years and what happened to investors who stayed the course:',
+      },
+      {
+        type: 'table',
+        rows: [
+          ['Crisis', 'Sensex Fall', 'Recovery Time', 'SIP Return (10yr from crash)'],
+          ['Dot-Com Crash (2000)', '-56%', '~5 years', '~15% XIRR'],
+          ['Global Financial Crisis (2008)', '-60%', '5 years', '~13% XIRR'],
+          ['European Debt Crisis (2011)', '-28%', '2 years', '~14% XIRR'],
+          ['Demonetisation (2016)', '-9%', '3 months', '~12% XIRR'],
+          ['COVID-19 (2020)', '-38%', '7 months', '~16% XIRR'],
+          ['Russia-Ukraine (2022)', '-16%', '6 months', 'On track for 13%+'],
+          ['Current Correction (2026)', '-14.4%', '?', 'History says: will recover'],
+        ],
+      },
+      {
+        type: 'callout',
+        variant: 'tip',
+        text: 'Notice the pattern? The deeper the crash, the higher the SIP returns over the next decade. A 60 percent crash in 2008 generated 13 percent XIRR. A 38 percent COVID crash generated 16 percent XIRR. Corrections are not wealth destroyers — they are wealth accelerators for patient SIP investors.',
+      },
+      {
+        type: 'heading',
+        text: 'The Real Cost of Stopping Your SIP During a Correction',
+      },
+      {
+        type: 'paragraph',
+        text: 'Many investors think pausing their SIP for "a few months until things settle down" is a safe move. Let us quantify exactly how much this "safe" decision costs:',
+      },
+      {
+        type: 'table',
+        rows: [
+          ['Scenario', 'Action', 'Missed Contributions', 'Portfolio Impact (10 Years)'],
+          ['Pause SIP for 3 months', 'Stop Rs 10,000/month SIP', 'Rs 30,000', 'Portfolio smaller by Rs 85,000+'],
+          ['Pause SIP for 6 months', 'Stop Rs 10,000/month SIP', 'Rs 60,000', 'Portfolio smaller by Rs 1.9 lakh+'],
+          ['Pause SIP for 12 months', 'Stop Rs 10,000/month SIP', 'Rs 1,20,000', 'Portfolio smaller by Rs 4.5 lakh+'],
+          ['Redeem & re-enter later', 'Sell at 15% loss, re-enter after recovery', 'Rs 0', 'Portfolio smaller by 25-40%'],
+        ],
+      },
+      {
+        type: 'paragraph',
+        text: 'The numbers are devastating. A 6-month SIP pause during a correction does not "save" you Rs 60,000 — it costs you Rs 1.9 lakh in lost wealth because you miss the discounted NAVs during the correction. Those missed units cannot be bought later at the same price. The market will recover, NAVs will rise, and your Rs 10,000 will buy fewer units. You are not avoiding risk — you are avoiding returns.',
+      },
+      {
+        type: 'heading',
+        text: 'What You SHOULD Do Right Now: Your 5-Point Action Plan',
+      },
+      {
+        type: 'subheading',
+        text: '1. Continue Every SIP Without Exception',
+      },
+      {
+        type: 'paragraph',
+        text: 'This is non-negotiable. Your SIP is designed to work through volatility — it buys more units when prices are low and fewer when prices are high. A falling market is not a reason to stop — it is the reason SIPs were invented. If anything, your current SIP instalments are the most valuable ones you will make this year because they are buying at discounted NAVs.',
+      },
+      {
+        type: 'subheading',
+        text: '2. Increase Your SIP If Your Cash Flow Allows',
+      },
+      {
+        type: 'paragraph',
+        text: 'If you have surplus cash, this is the time to deploy it. Consider increasing your SIP amount by 20 to 30 percent for the next 6 months. Even a temporary increase creates a significant impact because you are buying more units at depressed valuations. When markets recover, these extra units generate outsized compounding.',
+      },
+      {
+        type: 'subheading',
+        text: '3. Deploy Lumpsum Via STP (Systematic Transfer Plan)',
+      },
+      {
+        type: 'paragraph',
+        text: 'If you have idle cash in your savings account or a maturing FD, consider parking it in a liquid fund and setting up an STP into a diversified equity mutual fund over 3 to 6 months. This gives you the benefit of investing at lower valuations while spreading your risk. Corrections of 10 percent or more are historically rare opportunities — they occur only 2 to 3 times per decade.',
+      },
+      {
+        type: 'subheading',
+        text: '4. Review Your Asset Allocation — Do Not Change It',
+      },
+      {
+        type: 'paragraph',
+        text: 'A 15 percent fall in equity means your portfolio allocation has shifted. If your target was 70 percent equity and 30 percent debt, you might now be at 62:38. This is actually a signal to add more to equity to rebalance — not to reduce it further. Mechanical rebalancing forces you to buy low and sell high, which is exactly the opposite of what emotions tell you to do.',
+      },
+      {
+        type: 'subheading',
+        text: '5. Focus on Your Financial Goals, Not Market Levels',
+      },
+      {
+        type: 'paragraph',
+        text: 'If your goal is 10 or 15 years away, today\'s correction is noise. A 14 percent fall in a journey of 15 years is a footnote, not a chapter. What matters is whether your SIP amount, fund selection, and investment horizon are aligned with your goal. If they are, there is nothing to fix. Markets will do what markets do — go up, come down, and ultimately trend higher over long periods.',
+      },
+      {
+        type: 'heading',
+        text: 'What About Mid-Cap and Small-Cap Funds?',
+      },
+      {
+        type: 'paragraph',
+        text: 'The Nifty Smallcap 250 is officially in a bear market, down over 22 percent from its peak. Midcaps are close behind with a 17 percent fall. This is painful, but it is also when the foundation for the next bull run is being laid.',
+      },
+      {
+        type: 'list',
+        items: [
+          'If you are investing via SIP for a 7+ year goal, continue your mid-cap and small-cap SIPs. These corrections are buying opportunities — smallcap funds bought during the 2020 crash delivered 50 to 70 percent returns in 18 months.',
+          'If your goal is less than 3 years away, you should not have significant exposure to mid and small caps in the first place. This is an asset allocation issue, not a market timing issue.',
+          'Do NOT shift from small/mid-cap to large-cap just because small/mid has fallen more. When recovery comes, small and mid-caps typically bounce harder — 1.5x to 2x the large-cap recovery.',
+          'Consider adding a flexicap or multicap fund to your portfolio if you want professional allocation across market caps. Let the fund manager decide the mix.',
+        ],
+      },
+      {
+        type: 'heading',
+        text: 'The Psychology of Market Corrections: Why Your Brain Lies to You',
+      },
+      {
+        type: 'paragraph',
+        text: 'Behavioural finance research by Daniel Kahneman (Nobel Prize winner) shows that humans feel the pain of a loss 2.5 times more intensely than the pleasure of an equivalent gain. This is called "loss aversion" and it is the reason you feel physically uncomfortable looking at a red portfolio. Your brain is wired to interpret a falling portfolio as a threat — the same circuits that warned our ancestors about predators now fire when the Sensex drops 1,600 points.',
+      },
+      {
+        type: 'paragraph',
+        text: 'But here is the problem: your brain\'s threat response was designed for a world where running away from danger was the right move. In investing, running away (selling) is almost always the wrong move. The correct response during a correction is the exact opposite of what feels natural — stay still, keep investing, and do nothing. This requires discipline, not courage.',
+      },
+      {
+        type: 'callout',
+        variant: 'info',
+        text: 'A Dalbar study spanning 30 years found that the average equity mutual fund investor earned just 3.6 percent annualised, while the S&P 500 returned 10.7 percent over the same period. The difference? Investors bought high (during euphoria) and sold low (during panic). The fund did not underperform. The investor did.',
+      },
+      {
+        type: 'heading',
+        text: 'When Should You Actually Worry?',
+      },
+      {
+        type: 'paragraph',
+        text: 'Not every correction is a buying opportunity. Here are the specific signals that would warrant genuine concern — and none of them are present today:',
+      },
+      {
+        type: 'list',
+        items: [
+          'India GDP growth falling below 4 percent for two consecutive quarters (current: above 6 percent)',
+          'RBI aggressively hiking rates due to runaway inflation (current: RBI is cutting rates, signalling confidence)',
+          'Corporate earnings growth turning negative across sectors (current: Nifty 50 EPS growth at 12-14 percent)',
+          'Banking sector NPAs rising sharply (current: NPAs at decade lows, banks are healthy)',
+          'India entering a recession (current: not even close — India remains the fastest-growing major economy)',
+          'Sustained FII outflows lasting over 18 months with no DII offset (current: DIIs are providing strong support)',
+        ],
+      },
+      {
+        type: 'paragraph',
+        text: 'Until you see multiple signals from the list above materialising simultaneously, the correction remains a normal market phenomenon — not a structural breakdown. India\'s economic fundamentals remain strong, corporate earnings are growing, and the long-term trajectory of Indian equity markets remains upward.',
+      },
+      {
+        type: 'heading',
+        text: 'A Message From Your Future Self',
+      },
+      {
+        type: 'paragraph',
+        text: 'Imagine yourself in March 2031 — five years from today. The Sensex might be at 1,20,000 or 1,50,000. You look back at this week and see that the Sensex was at 73,718 and Nifty was at 22,819. You see your SIP transactions from March 2026 buying mutual fund units at deeply discounted NAVs. Those units have now doubled or tripled in value. You smile and think: that correction was the best thing that happened to my portfolio.',
+      },
+      {
+        type: 'paragraph',
+        text: 'Now imagine the alternative. You stopped your SIPs in March 2026. You redeemed some funds. You waited for "things to settle down." By the time you re-entered, the Sensex was already at 85,000. You bought fewer units at higher prices. Your portfolio is significantly smaller. That moment of panic cost you years of compounding.',
+      },
+      {
+        type: 'quote',
+        text: 'The stock market is a device for transferring money from the impatient to the patient. — Warren Buffett. Today, the market is testing your patience. Pass the test, and the rewards will compound for decades.',
+      },
+      {
+        type: 'heading',
+        text: 'Your Quick Reference Action Card',
+      },
+      {
+        type: 'table',
+        rows: [
+          ['Action', 'Priority', 'Why'],
+          ['Continue all SIPs', 'CRITICAL', 'Buying more units at lower NAVs = higher future returns'],
+          ['Increase SIP 20-30%', 'HIGH', 'Amplify rupee cost averaging during discount period'],
+          ['Deploy lumpsum via STP', 'MEDIUM', 'If you have idle cash, corrections are rare opportunities'],
+          ['Review goal alignment', 'MEDIUM', 'Ensure fund selection matches your time horizon'],
+          ['Stop checking portfolio', 'HIGH', 'Reduce emotional decision-making, check quarterly instead'],
+          ['Share this with family', 'HIGH', 'Prevent panic selling by loved ones — protect their wealth too'],
+        ],
+      },
+      {
+        type: 'cta',
+        text: 'See How Your SIP Benefits From This Correction',
+        items: ['Use our SIP Calculator to model how continuing your SIP during this correction accelerates your wealth creation, or try the SIP Shield Calculator to see how your SIP can fund your insurance premiums and EMIs forever.'],
+        buttonText: 'Open SIP Calculator',
+        buttonHref: '/calculators/sip',
+      },
+      {
+        type: 'disclaimer',
+        text: 'The market data and statistics mentioned in this article are based on publicly available information as of March 27, 2026. Historical returns and recovery timelines are illustrative and do not guarantee future performance. Mutual fund investments are subject to market risks — read all scheme-related documents carefully before investing. This article is for educational purposes only and does not constitute investment advice or a recommendation to buy, sell, or hold any security. Investors should consult a qualified financial advisor (SEBI Registered Investment Adviser or Certified Financial Planner) before making investment decisions. Trustner Asset Services Pvt. Ltd. is an AMFI-registered Mutual Fund Distributor (ARN-286886).',
+      },
+    ],
+  },
+
 ];

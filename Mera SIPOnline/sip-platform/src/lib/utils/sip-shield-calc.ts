@@ -61,6 +61,8 @@ export interface SIPShieldInputs {
   swpEnabled: boolean;
   swpAmount: number;
   swpFrequency: SWPFrequency;
+  swpInflationAdjusted: boolean;
+  swpInflationRate: number; // default 5%
 
   lumpsumEvents: LumpsumEvent[];
 }
@@ -207,9 +209,12 @@ function sipInflowForYear(inputs: SIPShieldInputs, year: number): number {
   return adjustedPerPeriod * periodsPerYear;
 }
 
-function annualSWP(inputs: SIPShieldInputs): number {
+function annualSWP(inputs: SIPShieldInputs, withdrawalYear: number): number {
   if (!inputs.swpEnabled || inputs.swpAmount <= 0) return 0;
-  return inputs.swpFrequency === 'yearly' ? inputs.swpAmount : inputs.swpAmount * 12;
+  const baseAnnual = inputs.swpFrequency === 'yearly' ? inputs.swpAmount : inputs.swpAmount * 12;
+  if (!inputs.swpInflationAdjusted || withdrawalYear <= 1) return baseAnnual;
+  const rate = inputs.swpInflationRate > 0 ? inputs.swpInflationRate : 5;
+  return baseAnnual * Math.pow(1 + rate / 100, withdrawalYear - 1);
 }
 
 // ── Main Calculator ─────────────────────────────────────────────────────────
@@ -247,8 +252,6 @@ export function calculateSIPShield(inputs: SIPShieldInputs): SIPShieldResult {
   let isSustainable = true;
   let depletionYear: number | undefined;
 
-  const swpAnnual = annualSWP(inputs);
-
   for (let yr = 1; yr <= totalYears; yr++) {
     const age = inputs.currentAge + yr;
     let phase: 'SIP' | 'Growth' | 'Withdrawal';
@@ -282,7 +285,8 @@ export function calculateSIPShield(inputs: SIPShieldInputs): SIPShieldResult {
       phase = 'Withdrawal';
       returnRate = inputs.withdrawalReturn;
       costFromCorpus = totalAnnualCostForYear(costs, inflationRate, yr);
-      swpThisYear = swpAnnual;
+      const withdrawalYearIndex = yr - sipDuration - growthPhaseYears;
+      swpThisYear = annualSWP(inputs, withdrawalYearIndex);
       for (const c of costs) {
         const amt = singleCostAnnualForYear(c, inflationRate, yr);
         costTotalMap.set(c.id, (costTotalMap.get(c.id) ?? 0) + amt);
