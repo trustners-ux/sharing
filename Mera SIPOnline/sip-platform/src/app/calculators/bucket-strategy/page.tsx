@@ -130,6 +130,7 @@ export default function BucketStrategyPage() {
   const [legacyPercent, setLegacyPercent] = useState(5);
   const [customReturns, setCustomReturns] = useState(false);
   const [liquidReturn, setLiquidReturn] = useState(5);
+  const [shortTermReturn, setShortTermReturn] = useState(6);
   const [debtReturn, setDebtReturn] = useState(7);
   const [balancedReturn, setBalancedReturn] = useState(10);
   const [equityReturn, setEquityReturn] = useState(12);
@@ -163,6 +164,7 @@ export default function BucketStrategyPage() {
       retirementHHE: overrideHHE ? retirementHHE : undefined,
       inflationRate,
       liquidReturn: customReturns ? liquidReturn : 5,
+      shortTermReturn: customReturns ? shortTermReturn : 6,
       debtReturn: customReturns ? debtReturn : 7,
       balancedReturn: customReturns ? balancedReturn : 10,
       equityReturn: customReturns ? equityReturn : 12,
@@ -177,7 +179,7 @@ export default function BucketStrategyPage() {
   }, [
     clientName, currentAge, retirementAge, lifeExpectancy, monthlyExpenses,
     inflationRate, overrideHHE, retirementHHE, customReturns, liquidReturn,
-    debtReturn, balancedReturn, equityReturn, includeEmergency,
+    shortTermReturn, debtReturn, balancedReturn, equityReturn, includeEmergency,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     JSON.stringify(corpusSources), JSON.stringify(incomes), JSON.stringify(lumpsumEvents),
     wantsLegacy, legacyPercent,
@@ -378,7 +380,7 @@ export default function BucketStrategyPage() {
                       <span className="text-[13px] font-semibold text-slate-600">Customize Returns</span>
                       <div className={cn('relative w-10 h-5 rounded-full transition-colors', customReturns ? 'bg-brand' : 'bg-slate-300')}><div className={cn('absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform', customReturns ? 'translate-x-5' : 'translate-x-0.5')} /></div>
                     </div>
-                    {customReturns && <div className="mt-2 space-y-2"><NumberInput label="Liquid/FD Return" value={liquidReturn} onChange={setLiquidReturn} suffix="%" step={0.5} min={3} max={8} /><NumberInput label="Debt/Hybrid Return" value={debtReturn} onChange={setDebtReturn} suffix="%" step={0.5} min={5} max={10} /><NumberInput label="Balanced Return" value={balancedReturn} onChange={setBalancedReturn} suffix="%" step={0.5} min={7} max={14} /><NumberInput label="Equity Return" value={equityReturn} onChange={setEquityReturn} suffix="%" step={0.5} min={8} max={18} /></div>}
+                    {customReturns && <div className="mt-2 space-y-2"><NumberInput label="B0: Liquid/FD (Emergency)" value={liquidReturn} onChange={setLiquidReturn} suffix="%" step={0.5} min={3} max={8} /><NumberInput label="B1: Short-Term Return" value={shortTermReturn} onChange={setShortTermReturn} suffix="%" step={0.5} min={4} max={9} /><NumberInput label="B2: Debt/Hybrid Return" value={debtReturn} onChange={setDebtReturn} suffix="%" step={0.5} min={5} max={10} /><NumberInput label="B3: Balanced Return" value={balancedReturn} onChange={setBalancedReturn} suffix="%" step={0.5} min={7} max={14} /><NumberInput label="B4: Equity Return" value={equityReturn} onChange={setEquityReturn} suffix="%" step={0.5} min={8} max={18} /></div>}
                   </div>
                 </div>
               </div>
