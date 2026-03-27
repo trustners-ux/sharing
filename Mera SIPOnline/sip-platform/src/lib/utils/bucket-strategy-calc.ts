@@ -50,6 +50,7 @@ export interface BucketInputs {
 
   wantsLegacy: boolean;
   legacyPercent: number;
+  includeEmergencyBucket?: boolean; // Default true
 }
 
 export interface BucketAllocation {
@@ -178,6 +179,7 @@ export function calculateBucketStrategy(inputs: BucketInputs): BucketResult {
     retirementHHE,
     inflationRate,
     liquidReturn,
+    debtReturn,
     balancedReturn,
     equityReturn,
     corpusSources,
@@ -225,10 +227,11 @@ export function calculateBucketStrategy(inputs: BucketInputs): BucketResult {
   const corpusForBucketing = totalCorpus - legacyAmount;
 
   // ── Step 6: Bucket Allocation ──────────────────────────────────────────
-  const bucketReturnRates = [liquidReturn, liquidReturn, balancedReturn, equityReturn, equityReturn];
+  const bucketReturnRates = [liquidReturn, liquidReturn, debtReturn, balancedReturn, equityReturn];
 
-  // B0: 6 months of FULL HHE (emergency covers everything)
-  const b0Raw = 6 * monthlyHHEAtRetirement;
+  // B0: 6 months of FULL HHE (emergency covers everything) — optional
+  const includeEmergency = inputs.includeEmergencyBucket !== false; // default true
+  const b0Raw = includeEmergency ? 6 * monthlyHHEAtRetirement : 0;
 
   // B1: 3 years of gap, inflation-adjusted across years 1-3
   let b1Raw = 0;
@@ -423,7 +426,7 @@ function buildNoGapResult(
   totalMonthlyIncome: number
 ): BucketResult {
   const retirementYears = inputs.lifeExpectancy - inputs.retirementAge;
-  const bucketReturnRates = [inputs.liquidReturn, inputs.liquidReturn, inputs.balancedReturn, inputs.equityReturn, inputs.equityReturn];
+  const bucketReturnRates = [inputs.liquidReturn, inputs.liquidReturn, inputs.debtReturn, inputs.balancedReturn, inputs.equityReturn];
 
   const b0 = ceilToLakh(6 * monthlyHHE);
   const rem = Math.max(totalCorpus - b0, 0);

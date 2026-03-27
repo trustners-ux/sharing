@@ -125,6 +125,7 @@ export default function BucketStrategyPage() {
 
   const [overrideHHE, setOverrideHHE] = useState(false);
   const [retirementHHE, setRetirementHHE] = useState(0);
+  const [includeEmergency, setIncludeEmergency] = useState(true);
   const [wantsLegacy, setWantsLegacy] = useState(false);
   const [legacyPercent, setLegacyPercent] = useState(5);
   const [customReturns, setCustomReturns] = useState(false);
@@ -170,12 +171,13 @@ export default function BucketStrategyPage() {
       lumpsumEvents,
       wantsLegacy,
       legacyPercent: wantsLegacy ? legacyPercent : 0,
+      includeEmergencyBucket: includeEmergency,
     };
     return calculateBucketStrategy(inputs);
   }, [
     clientName, currentAge, retirementAge, lifeExpectancy, monthlyExpenses,
     inflationRate, overrideHHE, retirementHHE, customReturns, liquidReturn,
-    debtReturn, balancedReturn, equityReturn,
+    debtReturn, balancedReturn, equityReturn, includeEmergency,
     // eslint-disable-next-line react-hooks/exhaustive-deps
     JSON.stringify(corpusSources), JSON.stringify(incomes), JSON.stringify(lumpsumEvents),
     wantsLegacy, legacyPercent,
@@ -350,6 +352,13 @@ export default function BucketStrategyPage() {
               <div className="border-t-4 border-slate-400 rounded-xl bg-white p-4">
                 <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2"><TrendingUp className="w-4 h-4 text-slate-500" /> Scenario Tuning</h3>
                 <div className="space-y-4">
+                  <div>
+                    <div className="flex items-center justify-between cursor-pointer" onClick={() => setIncludeEmergency(!includeEmergency)} role="button" tabIndex={0}>
+                      <span className="text-[13px] font-semibold text-slate-600">Include Emergency Bucket (B0)</span>
+                      <div className={cn('relative w-10 h-5 rounded-full transition-colors', includeEmergency ? 'bg-emerald-500' : 'bg-slate-300')}><div className={cn('absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform', includeEmergency ? 'translate-x-5' : 'translate-x-0.5')} /></div>
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-1">{includeEmergency ? '6 months of expenses reserved in Bank FD/Liquid Fund' : 'Emergency fund not included -- full corpus goes to income buckets'}</p>
+                  </div>
                   <div>
                     <div className="flex items-center justify-between cursor-pointer" onClick={handleOverrideToggle} role="button" tabIndex={0}>
                       <span className="text-[13px] font-semibold text-slate-600">Retirement HHE Override</span>
