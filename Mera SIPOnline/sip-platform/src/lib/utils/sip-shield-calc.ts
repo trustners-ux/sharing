@@ -9,16 +9,20 @@ export type CostType = 'term_plan' | 'endowment' | 'home_loan' | 'car_loan' | 'p
 
 export type PaymentFrequency = 'monthly' | 'quarterly' | 'half_yearly' | 'yearly';
 
-export type SIPFrequency = 'monthly';
+export type SIPFrequency = 'monthly' | 'yearly';
+
+export type StepUpType = 'percentage' | 'fixed';
+
+export type SWPFrequency = 'monthly' | 'yearly';
 
 export interface RecurringCost {
+  id: string;
   type: CostType;
   label: string;
-  amount: number;
+  amount: number;        // 0 – 2500000
   frequency: PaymentFrequency;
   totalTenure: number;
   alreadyPaidYears: number;
-  inflationRate: number;
 }
 
 export interface LumpsumEvent {
@@ -32,15 +36,31 @@ export interface LumpsumEvent {
 export interface SIPShieldInputs {
   clientName: string;
   currentAge: number;
-  cost: RecurringCost;
+
+  /** Multiple recurring costs whose annual amounts are summed. */
+  costs: RecurringCost[];
+
+  /** Single inflation rate applied to all costs. */
+  inflationRate: number;
+
   monthlySIP: number;
+  sipFrequency: SIPFrequency;      // monthly | yearly
   sipDuration: number;
   sipReturn: number;
+
   stepUpEnabled: boolean;
-  stepUpPercent: number;
+  stepUpType: StepUpType;          // 'percentage' | 'fixed'
+  stepUpValue: number;             // percent (e.g. 10) or fixed Rs. (e.g. 1000)
+
   growthPhaseYears: number;
   growthReturn: number;
   withdrawalReturn: number;
+
+  /** SWP — additional monthly/yearly withdrawal during withdrawal phase. */
+  swpEnabled: boolean;
+  swpAmount: number;
+  swpFrequency: SWPFrequency;
+
   lumpsumEvents: LumpsumEvent[];
 }
 
@@ -51,6 +71,7 @@ export interface YearlyDetail {
   sipInflow: number;
   costPaidFromPocket: number;
   costPaidFromCorpus: number;
+  swpWithdrawn: number;
   returnEarned: number;
   lumpsumEvent?: string;
   yearEndCorpus: number;
@@ -60,6 +81,13 @@ export interface SIPShieldInsight {
   type: 'positive' | 'warning' | 'critical' | 'tip';
   title: string;
   description: string;
+}
+
+export interface CostBreakdownItem {
+  label: string;
+  totalPaid: number;
+  paidFromPocket: number;
+  paidFromCorpus: number;
 }
 
 export interface SIPShieldResult {
@@ -74,6 +102,7 @@ export interface SIPShieldResult {
   totalCostPaidFromCorpus: number;
   totalCostOverTenure: number;
   totalReturnEarned: number;
+  totalSWPWithdrawn: number;
   corpusAtEndOfSIP: number;
   corpusAtEndOfGrowth: number;
   finalCorpus: number;
@@ -83,6 +112,7 @@ export interface SIPShieldResult {
   depletionYear?: number;
   yearlyDetails: YearlyDetail[];
   insights: SIPShieldInsight[];
+  costBreakdown: CostBreakdownItem[];
 }
 
 // ── Constants ───────────────────────────────────────────────────────────────
@@ -128,26 +158,87 @@ function round2(v: number): number {
   return Math.round(v * 100) / 100;
 }
 
-function annualCostForYear(cost: RecurringCost, yearFromStart: number): number {
+/**
+ * Total annual cost across all recurring costs for a given year,
+ * applying a single inflation rate.
+ */
+function totalAnnualCostForYear(
+  costs: RecurringCost[],
+  inflationRate: number,
+  yearFromStart: number,
+): number {
+  let total = 0;
+  for (const cost of costs) {
+    const remainingYears = cost.totalTenure - cost.alreadyPaidYears;
+    if (yearFromStart > remainingYears) continue;   // cost tenure ended
+    const baseCost = cost.amount * FREQUENCY_MULTIPLIER[cost.frequency];
+    const effectiveYear = cost.alreadyPaidYears + yearFromStart;
+    if (inflationRate <= 0) {
+      total += baseCost;
+    } else {
+      total += baseCost * Math.pow(1 + inflationRate / 100, effectiveYear);
+    }
+  }
+  return total;
+}
+
+/**
+ * Annual cost for a single cost item (used for per-cost breakdown tracking).
+ */
+function singleCostAnnualForYear(
+  cost: RecurringCost,
+  inflationRate: number,
+  yearFromStart: number,
+): number {
+  const remainingYears = cost.totalTenure - cost.alreadyPaidYears;
+  if (yearFromStart > remainingYears) return 0;
   const baseCost = cost.amount * FREQUENCY_MULTIPLIER[cost.frequency];
   const effectiveYear = cost.alreadyPaidYears + yearFromStart;
-  if (cost.inflationRate <= 0) return baseCost;
-  return baseCost * Math.pow(1 + cost.inflationRate / 100, effectiveYear);
+  if (inflationRate <= 0) return baseCost;
+  return baseCost * Math.pow(1 + inflationRate / 100, effectiveYear);
 }
 
 function sipInflowForYear(inputs: SIPShieldInputs, year: number): number {
-  const base = inputs.monthlySIP * 12;
-  if (!inputs.stepUpEnabled || inputs.stepUpPercent <= 0) return base;
-  return base * Math.pow(1 + inputs.stepUpPercent / 100, year - 1);
+  const periodsPerYear = inputs.sipFrequency === 'yearly' ? 1 : 12;
+  const baseAnnual = inputs.monthlySIP * periodsPerYear;
+
+  if (!inputs.stepUpEnabled || inputs.stepUpValue <= 0) return baseAnnual;
+
+  if (inputs.stepUpType === 'percentage') {
+    return baseAnnual * Math.pow(1 + inputs.stepUpValue / 100, year - 1);
+  }
+  // fixed step-up: add stepUpValue per year to the per-period SIP, then multiply
+  const adjustedPerPeriod = inputs.monthlySIP + inputs.stepUpValue * (year - 1);
+  return adjustedPerPeriod * periodsPerYear;
+}
+
+function annualSWP(inputs: SIPShieldInputs): number {
+  if (!inputs.swpEnabled || inputs.swpAmount <= 0) return 0;
+  return inputs.swpFrequency === 'yearly' ? inputs.swpAmount : inputs.swpAmount * 12;
 }
 
 // ── Main Calculator ─────────────────────────────────────────────────────────
 
 export function calculateSIPShield(inputs: SIPShieldInputs): SIPShieldResult {
-  const { cost, sipDuration, growthPhaseYears } = inputs;
-  const remainingTenure = cost.totalTenure - cost.alreadyPaidYears;
-  const withdrawalPhaseYears = Math.max(0, remainingTenure - sipDuration - growthPhaseYears);
+  const { costs, sipDuration, growthPhaseYears, inflationRate } = inputs;
+
+  // Max remaining tenure across all costs
+  const maxRemainingTenure = costs.reduce(
+    (mx, c) => Math.max(mx, c.totalTenure - c.alreadyPaidYears),
+    0,
+  );
+  const withdrawalPhaseYears = Math.max(0, maxRemainingTenure - sipDuration - growthPhaseYears);
   const totalYears = sipDuration + growthPhaseYears + withdrawalPhaseYears;
+
+  // Per-cost breakdown accumulators
+  const costPocketMap = new Map<string, number>();
+  const costCorpusMap = new Map<string, number>();
+  const costTotalMap = new Map<string, number>();
+  for (const c of costs) {
+    costPocketMap.set(c.id, 0);
+    costCorpusMap.set(c.id, 0);
+    costTotalMap.set(c.id, 0);
+  }
 
   const yearlyDetails: YearlyDetail[] = [];
   let corpus = 0;
@@ -155,10 +246,13 @@ export function calculateSIPShield(inputs: SIPShieldInputs): SIPShieldResult {
   let totalCostPaidFromPocket = 0;
   let totalCostPaidFromCorpus = 0;
   let totalReturnEarned = 0;
+  let totalSWPWithdrawn = 0;
   let corpusAtEndOfSIP = 0;
   let corpusAtEndOfGrowth = 0;
   let isSustainable = true;
   let depletionYear: number | undefined;
+
+  const swpAnnual = annualSWP(inputs);
 
   for (let yr = 1; yr <= totalYears; yr++) {
     const age = inputs.currentAge + yr;
@@ -167,20 +261,38 @@ export function calculateSIPShield(inputs: SIPShieldInputs): SIPShieldResult {
     let sipInflow = 0;
     let costFromPocket = 0;
     let costFromCorpus = 0;
+    let swpThisYear = 0;
 
     if (yr <= sipDuration) {
       phase = 'SIP';
       returnRate = inputs.sipReturn;
       sipInflow = sipInflowForYear(inputs, yr);
-      costFromPocket = annualCostForYear(cost, yr);
+      costFromPocket = totalAnnualCostForYear(costs, inflationRate, yr);
+      // Track per-cost pocket
+      for (const c of costs) {
+        const amt = singleCostAnnualForYear(c, inflationRate, yr);
+        costPocketMap.set(c.id, (costPocketMap.get(c.id) ?? 0) + amt);
+        costTotalMap.set(c.id, (costTotalMap.get(c.id) ?? 0) + amt);
+      }
     } else if (yr <= sipDuration + growthPhaseYears) {
       phase = 'Growth';
       returnRate = inputs.growthReturn;
-      costFromPocket = annualCostForYear(cost, yr);
+      costFromPocket = totalAnnualCostForYear(costs, inflationRate, yr);
+      for (const c of costs) {
+        const amt = singleCostAnnualForYear(c, inflationRate, yr);
+        costPocketMap.set(c.id, (costPocketMap.get(c.id) ?? 0) + amt);
+        costTotalMap.set(c.id, (costTotalMap.get(c.id) ?? 0) + amt);
+      }
     } else {
       phase = 'Withdrawal';
       returnRate = inputs.withdrawalReturn;
-      costFromCorpus = annualCostForYear(cost, yr);
+      costFromCorpus = totalAnnualCostForYear(costs, inflationRate, yr);
+      swpThisYear = swpAnnual;
+      for (const c of costs) {
+        const amt = singleCostAnnualForYear(c, inflationRate, yr);
+        costTotalMap.set(c.id, (costTotalMap.get(c.id) ?? 0) + amt);
+        // corpus allocation tracked after deduction below
+      }
     }
 
     // Add SIP inflow
@@ -209,10 +321,36 @@ export function calculateSIPShield(inputs: SIPShieldInputs): SIPShieldResult {
       if (corpus >= costFromCorpus) {
         corpus -= costFromCorpus;
         totalCostPaidFromCorpus += costFromCorpus;
+        // Track per-cost corpus proportionally
+        for (const c of costs) {
+          const amt = singleCostAnnualForYear(c, inflationRate, yr);
+          costCorpusMap.set(c.id, (costCorpusMap.get(c.id) ?? 0) + amt);
+        }
       } else {
-        // Corpus depleted
         totalCostPaidFromCorpus += Math.max(0, corpus);
+        // partial per-cost tracking (proportional)
+        const ratio = costFromCorpus > 0 ? Math.max(0, corpus) / costFromCorpus : 0;
+        for (const c of costs) {
+          const amt = singleCostAnnualForYear(c, inflationRate, yr);
+          costCorpusMap.set(c.id, (costCorpusMap.get(c.id) ?? 0) + amt * ratio);
+        }
         costFromCorpus = Math.max(0, corpus);
+        corpus = 0;
+        if (isSustainable) {
+          isSustainable = false;
+          depletionYear = yr;
+        }
+      }
+    }
+
+    // SWP withdrawal (additional to cost)
+    if (swpThisYear > 0 && phase === 'Withdrawal') {
+      if (corpus >= swpThisYear) {
+        corpus -= swpThisYear;
+        totalSWPWithdrawn += swpThisYear;
+      } else {
+        totalSWPWithdrawn += Math.max(0, corpus);
+        swpThisYear = Math.max(0, corpus);
         corpus = 0;
         if (isSustainable) {
           isSustainable = false;
@@ -232,6 +370,7 @@ export function calculateSIPShield(inputs: SIPShieldInputs): SIPShieldResult {
       sipInflow: round2(sipInflow),
       costPaidFromPocket: round2(costFromPocket),
       costPaidFromCorpus: round2(costFromCorpus),
+      swpWithdrawn: round2(swpThisYear),
       returnEarned: round2(returnEarned),
       lumpsumEvent: lumpsumLabel,
       yearEndCorpus: round2(corpus),
@@ -245,24 +384,40 @@ export function calculateSIPShield(inputs: SIPShieldInputs): SIPShieldResult {
   const netBenefit = round2(finalCorpus + totalCostPaidFromCorpus - totalSIPInvested);
   const benefitMultiple = totalSIPInvested > 0 ? round2(netBenefit / totalSIPInvested) : 0;
 
+  // Build per-cost breakdown
+  const costBreakdown: CostBreakdownItem[] = costs.map(c => ({
+    label: c.label || COST_TYPE_LABELS[c.type],
+    totalPaid: round2(costTotalMap.get(c.id) ?? 0),
+    paidFromPocket: round2(costPocketMap.get(c.id) ?? 0),
+    paidFromCorpus: round2(costCorpusMap.get(c.id) ?? 0),
+  }));
+
+  // Combined cost label for display
+  const costLabel =
+    costs.length === 1
+      ? costs[0].label || COST_TYPE_LABELS[costs[0].type]
+      : `${costs.length} Recurring Costs`;
+
   // ── Insights ──────────────────────────────────────────────────────────────
   const insights: SIPShieldInsight[] = [];
 
-  // 1. SIP corpus summary (always)
+  const sipLabelFreq = inputs.sipFrequency === 'yearly' ? 'year' : 'month';
+
+  // 1. SIP corpus summary
   insights.push({
     type: 'positive',
     title: 'SIP Corpus Built',
-    description: `Your SIP of ${formatRs(inputs.monthlySIP)}/month for ${sipDuration} years builds a corpus of ${formatRs(corpusAtEndOfSIP)}.`,
+    description: `Your SIP of ${formatRs(inputs.monthlySIP)}/${sipLabelFreq} for ${sipDuration} years builds a corpus of ${formatRs(corpusAtEndOfSIP)}.`,
   });
 
   // 2. Freedom year
   if (withdrawalPhaseYears > 0) {
     const freedomYear = sipDuration + growthPhaseYears + 1;
-    const annualCostAtFreedom = annualCostForYear(cost, freedomYear);
+    const annualCostAtFreedom = totalAnnualCostForYear(costs, inflationRate, freedomYear);
     insights.push({
       type: 'positive',
       title: 'Freedom From Pocket Payments',
-      description: `From year ${freedomYear} onwards, your corpus pays ${formatRs(annualCostAtFreedom)}/year in ${COST_TYPE_LABELS[cost.type].toLowerCase()} — you never pay from pocket again.`,
+      description: `From year ${freedomYear} onwards, your corpus pays ${formatRs(annualCostAtFreedom)}/year in recurring costs — you never pay from pocket again.`,
     });
   }
 
@@ -272,7 +427,7 @@ export function calculateSIPShield(inputs: SIPShieldInputs): SIPShieldResult {
     insights.push({
       type: 'positive',
       title: 'Total Cost Covered By Corpus',
-      description: `Over the full tenure, your corpus pays ${formatRs(totalCostPaidFromCorpus)} in ${cost.label || COST_TYPE_LABELS[cost.type].toLowerCase()} while you invested only ${formatRs(totalSIPInvested)} — a ${multiple}x return.`,
+      description: `Over the full tenure, your corpus pays ${formatRs(totalCostPaidFromCorpus)} in recurring costs while you invested only ${formatRs(totalSIPInvested)} — a ${multiple}x return.`,
     });
   }
 
@@ -286,15 +441,19 @@ export function calculateSIPShield(inputs: SIPShieldInputs): SIPShieldResult {
   }
 
   // 5. Step-up benefit
-  if (inputs.stepUpEnabled && inputs.stepUpPercent > 0) {
-    const baseCorpus = inputs.monthlySIP * 12 * sipDuration;
+  if (inputs.stepUpEnabled && inputs.stepUpValue > 0) {
+    const periodsPerYear = inputs.sipFrequency === 'yearly' ? 1 : 12;
+    const baseCorpus = inputs.monthlySIP * periodsPerYear * sipDuration;
     const boost = totalSIPInvested > baseCorpus
       ? Math.round(((totalSIPInvested - baseCorpus) / baseCorpus) * 100)
       : 0;
+    const stepLabel = inputs.stepUpType === 'percentage'
+      ? `${inputs.stepUpValue}% annual step-up`
+      : `Rs.${inputs.stepUpValue.toLocaleString('en-IN')}/period annual step-up`;
     insights.push({
       type: 'tip',
       title: 'Step-Up SIP Advantage',
-      description: `With ${inputs.stepUpPercent}% annual step-up, your total investment is ${boost}% higher than a flat SIP — compounding amplifies this further.`,
+      description: `With ${stepLabel}, your total investment is ${boost}% higher than a flat SIP — compounding amplifies this further.`,
     });
   }
 
@@ -317,14 +476,25 @@ export function calculateSIPShield(inputs: SIPShieldInputs): SIPShieldResult {
     });
   }
 
-  // 8. Tax tip
-  insights.push({
-    type: 'tip',
-    title: 'Tax Benefit',
-    description: TAX_TIPS[cost.type],
-  });
+  // 8. Tax tip (use first cost's type)
+  if (costs.length > 0) {
+    insights.push({
+      type: 'tip',
+      title: 'Tax Benefit',
+      description: TAX_TIPS[costs[0].type],
+    });
+  }
 
-  // 9. Annual free money equivalent
+  // 9. SWP insight
+  if (inputs.swpEnabled && totalSWPWithdrawn > 0) {
+    insights.push({
+      type: 'positive',
+      title: 'SWP Income Received',
+      description: `You also received ${formatRs(totalSWPWithdrawn)} as SWP income during the withdrawal phase — additional cash flow beyond cost coverage.`,
+    });
+  }
+
+  // 10. Annual free money equivalent
   if (isSustainable && withdrawalPhaseYears > 0) {
     const avgAnnualFromCorpus = round2(totalCostPaidFromCorpus / withdrawalPhaseYears);
     insights.push({
@@ -334,7 +504,7 @@ export function calculateSIPShield(inputs: SIPShieldInputs): SIPShieldResult {
     });
   }
 
-  // 10. Net benefit summary
+  // 11. Net benefit summary
   if (isSustainable) {
     insights.push({
       type: 'positive',
@@ -345,7 +515,7 @@ export function calculateSIPShield(inputs: SIPShieldInputs): SIPShieldResult {
 
   return {
     clientName: inputs.clientName,
-    costLabel: cost.label || COST_TYPE_LABELS[cost.type],
+    costLabel,
     sipPhaseYears: sipDuration,
     growthPhaseYears,
     withdrawalPhaseYears,
@@ -355,6 +525,7 @@ export function calculateSIPShield(inputs: SIPShieldInputs): SIPShieldResult {
     totalCostPaidFromCorpus: round2(totalCostPaidFromCorpus),
     totalCostOverTenure,
     totalReturnEarned: round2(totalReturnEarned),
+    totalSWPWithdrawn: round2(totalSWPWithdrawn),
     corpusAtEndOfSIP: round2(corpusAtEndOfSIP),
     corpusAtEndOfGrowth: round2(corpusAtEndOfGrowth),
     finalCorpus,
@@ -364,5 +535,6 @@ export function calculateSIPShield(inputs: SIPShieldInputs): SIPShieldResult {
     depletionYear,
     yearlyDetails,
     insights,
+    costBreakdown,
   };
 }

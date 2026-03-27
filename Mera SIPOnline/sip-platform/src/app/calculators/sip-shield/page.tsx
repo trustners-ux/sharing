@@ -11,8 +11,8 @@ import {
 } from 'recharts';
 import { calculateSIPShield, COST_TYPE_LABELS } from '@/lib/utils/sip-shield-calc';
 import type {
-  SIPShieldInputs, SIPShieldResult, YearlyDetail, LumpsumEvent,
-  CostType, PaymentFrequency,
+  SIPShieldInputs, SIPShieldResult, YearlyDetail, LumpsumEvent, RecurringCost,
+  CostType, PaymentFrequency, SIPFrequency, StepUpType, SWPFrequency,
 } from '@/lib/utils/sip-shield-calc';
 import { formatNumber } from '@/lib/utils/formatters';
 import { cn } from '@/lib/utils/cn';
@@ -21,7 +21,7 @@ import NumberInput from '@/components/ui/NumberInput';
 import DownloadPDFButton from '@/components/ui/DownloadPDFButton';
 import PersonalInfoBar from '@/components/ui/PersonalInfoBar';
 
-// ── Constants ──────────────────────────────────────
+// ── Constants ──────────────────────────────────
 
 const COST_TYPE_OPTIONS: { key: CostType; label: string }[] = [
   { key: 'term_plan', label: 'Term Insurance Premium' },
@@ -57,6 +57,49 @@ function fmtLakhs(v: number): string {
   return formatNumber(Math.round(v));
 }
 
+function makeCostId(): string {
+  return `cost_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function defaultCost(type: CostType = 'term_plan'): RecurringCost {
+  return {
+    id: makeCostId(),
+    type,
+    label: COST_TYPE_OPTIONS.find(o => o.key === type)?.label ?? 'Recurring Payment',
+    amount: 25000,
+    frequency: 'yearly' as PaymentFrequency,
+    totalTenure: 30,
+    alreadyPaidYears: 0,
+  };
+}
+
+// ── Toggle component ──
+
+function Toggle({ enabled, onChange, label }: { enabled: boolean; onChange: (v: boolean) => void; label: string }) {
+  return (
+    <div className="flex items-center justify-between cursor-pointer" onClick={() => onChange(!enabled)} role="switch" aria-checked={enabled} tabIndex={0}>
+      <span className="text-[13px] font-semibold text-slate-600">{label}</span>
+      <div className={cn('relative w-10 h-5 rounded-full transition-colors', enabled ? 'bg-emerald-500' : 'bg-slate-300')}>
+        <div className={cn('absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform', enabled ? 'translate-x-5' : 'translate-x-0.5')} />
+      </div>
+    </div>
+  );
+}
+
+// ── Pill selector ──
+
+function PillSelector<T extends string>({ options, value, onChange }: { options: { key: T; label: string }[]; value: T; onChange: (v: T) => void }) {
+  return (
+    <div className="flex gap-1.5" data-pdf-hide>
+      {options.map(o => (
+        <button key={o.key} type="button" onClick={() => onChange(o.key)} className={cn('flex-1 py-2 text-xs font-semibold rounded-lg border transition-all', value === o.key ? 'bg-brand text-white border-brand' : 'bg-white text-slate-500 border-surface-300 hover:border-brand-200')}>
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // ── Summary Card ──
 
 function SummaryCard({ icon, label, value, color }: {
@@ -90,25 +133,27 @@ export default function SIPShieldPage() {
   const [clientAge, setClientAge] = useState<number | null>(null);
   const [currentAge, setCurrentAge] = useState(30);
 
-  // Section 2: Recurring Cost
-  const [costType, setCostType] = useState<CostType>('term_plan');
-  const [costLabel, setCostLabel] = useState('Term Insurance Premium');
-  const [paymentAmount, setPaymentAmount] = useState(25000);
-  const [paymentFrequency, setPaymentFrequency] = useState<PaymentFrequency>('yearly');
-  const [totalTenure, setTotalTenure] = useState(30);
-  const [alreadyPaid, setAlreadyPaid] = useState(0);
+  // Section 2: Multiple Recurring Costs
+  const [costs, setCosts] = useState<RecurringCost[]>([defaultCost()]);
   const [costInflation, setCostInflation] = useState(0);
 
   // Section 3: SIP Strategy
   const [monthlySIP, setMonthlySIP] = useState(5000);
+  const [sipFrequency, setSipFrequency] = useState<SIPFrequency>('monthly');
   const [sipDuration, setSipDuration] = useState(12);
   const [sipReturn, setSipReturn] = useState(12);
   const [stepUpEnabled, setStepUpEnabled] = useState(true);
-  const [stepUpPercent, setStepUpPercent] = useState(10);
+  const [stepUpType, setStepUpType] = useState<StepUpType>('percentage');
+  const [stepUpValue, setStepUpValue] = useState(10);
   const [growthPhaseEnabled, setGrowthPhaseEnabled] = useState(false);
   const [growthPeriod, setGrowthPeriod] = useState(3);
   const [growthReturn, setGrowthReturn] = useState(10);
   const [withdrawalReturn, setWithdrawalReturn] = useState(8);
+
+  // SWP
+  const [swpEnabled, setSwpEnabled] = useState(false);
+  const [swpAmount, setSwpAmount] = useState(10000);
+  const [swpFrequency, setSwpFrequency] = useState<SWPFrequency>('monthly');
 
   // Section 4: Lumpsum Events
   const [lumpsumEvents, setLumpsumEvents] = useState<LumpsumEvent[]>([]);
@@ -118,18 +163,40 @@ export default function SIPShieldPage() {
   const [showYearlyTable, setShowYearlyTable] = useState(false);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
 
-  // Handle cost type change — auto-fill label & default inflation
-  const handleCostTypeChange = (type: CostType) => {
-    setCostType(type);
-    setCostLabel(COST_TYPE_OPTIONS.find(o => o.key === type)?.label ?? 'Recurring Payment');
-    setCostInflation(INSURANCE_TYPES.includes(type) ? 0 : 5);
+  // ── Cost helpers ──
+
+  const updateCost = (id: string, patch: Partial<RecurringCost>) => {
+    setCosts(prev => prev.map(c => c.id === id ? { ...c, ...patch } : c));
   };
+
+  const handleCostTypeChange = (id: string, type: CostType) => {
+    const label = COST_TYPE_OPTIONS.find(o => o.key === type)?.label ?? 'Recurring Payment';
+    updateCost(id, { type, label });
+    // Auto-set inflation for first cost only as a default hint
+    if (costs[0]?.id === id) {
+      setCostInflation(INSURANCE_TYPES.includes(type) ? 0 : 5);
+    }
+  };
+
+  const addCost = () => {
+    setCosts(prev => [...prev, defaultCost()]);
+  };
+
+  const removeCost = (id: string) => {
+    setCosts(prev => prev.length > 1 ? prev.filter(c => c.id !== id) : prev);
+  };
+
+  // Max remaining tenure across all costs
+  const maxRemainingTenure = costs.reduce(
+    (mx, c) => Math.max(mx, c.totalTenure - c.alreadyPaidYears),
+    0,
+  );
 
   const addLumpsum = (type: 'investment' | 'withdrawal') => {
     setLumpsumEvents(prev => [...prev, {
       id: String(nextLumpsumId), type,
       label: type === 'investment' ? 'Bonus / Windfall' : 'Emergency Withdrawal',
-      amount: 100000, atYear: Math.min(5, totalTenure - alreadyPaid),
+      amount: 100000, atYear: Math.min(5, maxRemainingTenure),
     }]);
     setNextLumpsumId(p => p + 1);
   };
@@ -140,32 +207,31 @@ export default function SIPShieldPage() {
     const inputs: SIPShieldInputs = {
       clientName,
       currentAge,
-      cost: {
-        type: costType,
-        label: costLabel,
-        amount: paymentAmount,
-        frequency: paymentFrequency,
-        totalTenure,
-        alreadyPaidYears: alreadyPaid,
-        inflationRate: costInflation,
-      },
+      costs,
+      inflationRate: costInflation,
       monthlySIP,
+      sipFrequency,
       sipDuration,
       sipReturn,
       stepUpEnabled,
-      stepUpPercent: stepUpEnabled ? stepUpPercent : 0,
+      stepUpType: stepUpEnabled ? stepUpType : 'percentage',
+      stepUpValue: stepUpEnabled ? stepUpValue : 0,
       growthPhaseYears: growthPhaseEnabled ? growthPeriod : 0,
       growthReturn: growthPhaseEnabled ? growthReturn : sipReturn,
       withdrawalReturn,
+      swpEnabled,
+      swpAmount: swpEnabled ? swpAmount : 0,
+      swpFrequency,
       lumpsumEvents,
     };
     return calculateSIPShield(inputs);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    clientName, currentAge, costType, costLabel, paymentAmount, paymentFrequency,
-    totalTenure, alreadyPaid, costInflation, monthlySIP, sipDuration, sipReturn,
-    stepUpEnabled, stepUpPercent, growthPhaseEnabled, growthPeriod, growthReturn,
-    withdrawalReturn,
+    clientName, currentAge, costInflation, monthlySIP, sipFrequency, sipDuration, sipReturn,
+    stepUpEnabled, stepUpType, stepUpValue, growthPhaseEnabled, growthPeriod, growthReturn,
+    withdrawalReturn, swpEnabled, swpAmount, swpFrequency,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    JSON.stringify(costs),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     JSON.stringify(lumpsumEvents),
   ]);
@@ -183,7 +249,8 @@ export default function SIPShieldPage() {
   const phaseColor = (p: string) =>
     p === 'SIP' ? 'text-emerald-700 bg-emerald-100' : p === 'Growth' ? 'text-amber-700 bg-amber-100' : 'text-teal-700 bg-teal-100';
 
-  const remainingTenure = totalTenure - alreadyPaid;
+  const sipFreqLabel = sipFrequency === 'yearly' ? 'year' : 'month';
+  const costDisplayLabel = result.costLabel;
 
   return (
     <>
@@ -214,7 +281,7 @@ export default function SIPShieldPage() {
           </div>
 
           <div id="calculator-results" className="grid lg:grid-cols-[420px_1fr] gap-8">
-            {/* ═══════ LEFT PANEL ═══════ */}
+            {/* LEFT PANEL */}
             <div className="card-base p-5 sm:p-6 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto space-y-6">
 
               {/* Section 1: Client Details */}
@@ -229,33 +296,48 @@ export default function SIPShieldPage() {
                 </div>
               </div>
 
-              {/* Section 2: Your Recurring Cost */}
+              {/* Section 2: Recurring Costs (multiple) */}
               <div className="border-t-4 border-red-400 rounded-xl bg-white p-4">
-                <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2"><IndianRupee className="w-4 h-4 text-red-500" /> Your Recurring Cost</h3>
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-[13px] font-semibold text-slate-600 mb-1.5">Cost Type</label>
-                    <select value={costType} onChange={e => handleCostTypeChange(e.target.value as CostType)} className="w-full px-3 py-2.5 text-sm font-semibold rounded-lg border border-surface-300 bg-white text-slate-700 focus:ring-2 focus:ring-brand-300 focus:border-brand-400 outline-none transition-all" data-pdf-hide>
-                      {COST_TYPE_OPTIONS.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-[13px] font-semibold text-slate-600 mb-1.5">Label</label>
-                    <input type="text" value={costLabel} onChange={e => setCostLabel(e.target.value)} className="w-full px-3 py-2.5 text-sm font-medium text-primary-700 bg-surface-50 border border-surface-300 rounded-lg outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-all placeholder:text-slate-300" />
-                  </div>
-                  <NumberInput label="Payment Amount" value={paymentAmount} onChange={setPaymentAmount} prefix="Rs." step={1000} min={500} max={5000000} />
-                  <div>
-                    <label className="block text-[13px] font-semibold text-slate-600 mb-1.5">Payment Frequency</label>
-                    <div className="flex gap-1.5" data-pdf-hide>
-                      {FREQUENCY_OPTIONS.map(f => (
-                        <button key={f.key} type="button" onClick={() => setPaymentFrequency(f.key)} className={cn('flex-1 py-2 text-xs font-semibold rounded-lg border transition-all', paymentFrequency === f.key ? 'bg-brand text-white border-brand' : 'bg-white text-slate-500 border-surface-300 hover:border-brand-200')}>
-                          {f.label}
-                        </button>
-                      ))}
+                <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2"><IndianRupee className="w-4 h-4 text-red-500" /> Your Recurring Costs</h3>
+                <div className="space-y-4">
+                  {costs.map((cost, idx) => (
+                    <div key={cost.id} className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 space-y-3 relative">
+                      {/* Card header with index & delete */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Cost {idx + 1}</span>
+                        {costs.length > 1 && (
+                          <button type="button" onClick={() => removeCost(cost.id)} className="p-1 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" data-pdf-hide>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-[13px] font-semibold text-slate-600 mb-1.5">Cost Type</label>
+                        <select value={cost.type} onChange={e => handleCostTypeChange(cost.id, e.target.value as CostType)} className="w-full px-3 py-2.5 text-sm font-semibold rounded-lg border border-surface-300 bg-white text-slate-700 focus:ring-2 focus:ring-brand-300 focus:border-brand-400 outline-none transition-all" data-pdf-hide>
+                          {COST_TYPE_OPTIONS.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[13px] font-semibold text-slate-600 mb-1.5">Label</label>
+                        <input type="text" value={cost.label} onChange={e => updateCost(cost.id, { label: e.target.value })} className="w-full px-3 py-2.5 text-sm font-medium text-primary-700 bg-surface-50 border border-surface-300 rounded-lg outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-all placeholder:text-slate-300" />
+                      </div>
+                      <NumberInput label="Payment Amount" value={cost.amount} onChange={v => updateCost(cost.id, { amount: v })} prefix="Rs." step={1000} min={0} max={2500000} />
+                      <div>
+                        <label className="block text-[13px] font-semibold text-slate-600 mb-1.5">Payment Frequency</label>
+                        <PillSelector options={FREQUENCY_OPTIONS} value={cost.frequency} onChange={v => updateCost(cost.id, { frequency: v })} />
+                      </div>
+                      <NumberInput label="Total Tenure" value={cost.totalTenure} onChange={v => updateCost(cost.id, { totalTenure: v })} suffix="years" step={1} min={5} max={50} />
+                      <NumberInput label="Already Paid" value={cost.alreadyPaidYears} onChange={v => updateCost(cost.id, { alreadyPaidYears: Math.min(v, cost.totalTenure - 1) })} suffix="years" step={1} min={0} max={cost.totalTenure - 1} />
                     </div>
-                  </div>
-                  <NumberInput label="Total Tenure" value={totalTenure} onChange={setTotalTenure} suffix="years" step={1} min={5} max={50} />
-                  <NumberInput label="Already Paid" value={alreadyPaid} onChange={v => setAlreadyPaid(Math.min(v, totalTenure - 1))} suffix="years" step={1} min={0} max={totalTenure - 1} />
+                  ))}
+
+                  {/* Add Cost button */}
+                  <button type="button" onClick={addCost} className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-semibold text-red-700 border border-red-300 border-dashed rounded-lg hover:bg-red-50 transition-colors" data-pdf-hide>
+                    <Plus className="w-3.5 h-3.5" /> Add Cost
+                  </button>
+
+                  {/* Shared inflation */}
                   <NumberInput label="Cost Inflation" value={costInflation} onChange={setCostInflation} suffix="%" step={0.5} min={0} max={15} hint="0% for fixed premiums, 5-8% for variable costs" />
                 </div>
               </div>
@@ -264,33 +346,51 @@ export default function SIPShieldPage() {
               <div className="border-t-4 border-brand rounded-xl bg-white p-4">
                 <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2"><TrendingUp className="w-4 h-4 text-brand" /> Your SIP Strategy</h3>
                 <div className="space-y-3">
-                  <NumberInput label="Monthly SIP Amount" value={monthlySIP} onChange={setMonthlySIP} prefix="Rs." step={500} min={1000} max={500000} />
+                  {/* SIP Amount + Frequency pills side-by-side */}
+                  <div>
+                    <label className="block text-[13px] font-semibold text-slate-600 mb-1.5">SIP Amount</label>
+                    <div className="flex items-end gap-2">
+                      <div className="flex-1">
+                        <NumberInput label="" value={monthlySIP} onChange={setMonthlySIP} prefix="Rs." step={500} min={1000} max={500000} />
+                      </div>
+                      <div className="flex gap-1 mb-[2px]" data-pdf-hide>
+                        {([{ key: 'monthly' as SIPFrequency, label: 'Monthly' }, { key: 'yearly' as SIPFrequency, label: 'Yearly' }]).map(o => (
+                          <button key={o.key} type="button" onClick={() => setSipFrequency(o.key)} className={cn('px-3 py-2 text-xs font-semibold rounded-lg border transition-all', sipFrequency === o.key ? 'bg-brand text-white border-brand' : 'bg-white text-slate-500 border-surface-300 hover:border-brand-200')}>
+                            {o.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
                   <NumberInput label="SIP Duration" value={sipDuration} onChange={setSipDuration} suffix="years" step={1} min={5} max={40} />
                   <NumberInput label="Expected SIP Return" value={sipReturn} onChange={setSipReturn} suffix="% p.a." step={0.5} min={8} max={18} />
 
                   {/* Step-Up Toggle */}
                   <div>
-                    <div className="flex items-center justify-between cursor-pointer" onClick={() => setStepUpEnabled(!stepUpEnabled)} role="switch" aria-checked={stepUpEnabled} tabIndex={0}>
-                      <span className="text-[13px] font-semibold text-slate-600">Step-Up SIP</span>
-                      <div className={cn('relative w-10 h-5 rounded-full transition-colors', stepUpEnabled ? 'bg-emerald-500' : 'bg-slate-300')}>
-                        <div className={cn('absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform', stepUpEnabled ? 'translate-x-5' : 'translate-x-0.5')} />
-                      </div>
-                    </div>
+                    <Toggle enabled={stepUpEnabled} onChange={setStepUpEnabled} label="Step-Up SIP" />
                     {stepUpEnabled && (
-                      <div className="mt-2">
-                        <NumberInput label="Step-Up Percentage" value={stepUpPercent} onChange={setStepUpPercent} suffix="%" step={1} min={0} max={25} />
+                      <div className="mt-2 space-y-2">
+                        {/* Type pills: % / Rs. */}
+                        <div className="flex gap-1.5" data-pdf-hide>
+                          {([{ key: 'percentage' as StepUpType, label: '%' }, { key: 'fixed' as StepUpType, label: 'Rs.' }]).map(o => (
+                            <button key={o.key} type="button" onClick={() => setStepUpType(o.key)} className={cn('px-4 py-2 text-xs font-semibold rounded-lg border transition-all', stepUpType === o.key ? 'bg-brand text-white border-brand' : 'bg-white text-slate-500 border-surface-300 hover:border-brand-200')}>
+                              {o.label}
+                            </button>
+                          ))}
+                        </div>
+                        {stepUpType === 'percentage' ? (
+                          <NumberInput label="Step-Up Percentage" value={stepUpValue} onChange={setStepUpValue} suffix="%" step={1} min={0} max={25} />
+                        ) : (
+                          <NumberInput label="Step-Up Amount" value={stepUpValue} onChange={setStepUpValue} prefix="Rs." step={500} min={0} max={100000} />
+                        )}
                       </div>
                     )}
                   </div>
 
                   {/* Growth Phase Toggle */}
                   <div>
-                    <div className="flex items-center justify-between cursor-pointer" onClick={() => setGrowthPhaseEnabled(!growthPhaseEnabled)} role="switch" aria-checked={growthPhaseEnabled} tabIndex={0}>
-                      <span className="text-[13px] font-semibold text-slate-600">Growth Phase</span>
-                      <div className={cn('relative w-10 h-5 rounded-full transition-colors', growthPhaseEnabled ? 'bg-brand' : 'bg-slate-300')}>
-                        <div className={cn('absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform', growthPhaseEnabled ? 'translate-x-5' : 'translate-x-0.5')} />
-                      </div>
-                    </div>
+                    <Toggle enabled={growthPhaseEnabled} onChange={setGrowthPhaseEnabled} label="Growth Phase" />
                     <p className="text-[10px] text-slate-400 mt-1">{growthPhaseEnabled ? 'Corpus compounds before withdrawals begin' : 'Withdrawals start immediately after SIP phase'}</p>
                     {growthPhaseEnabled && (
                       <div className="mt-2 space-y-2">
@@ -301,6 +401,26 @@ export default function SIPShieldPage() {
                   </div>
 
                   <NumberInput label="Withdrawal Phase Return" value={withdrawalReturn} onChange={setWithdrawalReturn} suffix="% p.a." step={0.5} min={5} max={12} />
+
+                  {/* SWP Section */}
+                  <div>
+                    <Toggle enabled={swpEnabled} onChange={setSwpEnabled} label="Enable SWP" />
+                    {swpEnabled && (
+                      <div className="mt-2 space-y-2">
+                        <NumberInput label="SWP Amount" value={swpAmount} onChange={setSwpAmount} prefix="Rs." step={1000} min={0} max={2500000} />
+                        <div>
+                          <label className="block text-[13px] font-semibold text-slate-600 mb-1.5">SWP Frequency</label>
+                          <div className="flex gap-1.5" data-pdf-hide>
+                            {([{ key: 'monthly' as SWPFrequency, label: 'Monthly' }, { key: 'yearly' as SWPFrequency, label: 'Yearly' }]).map(o => (
+                              <button key={o.key} type="button" onClick={() => setSwpFrequency(o.key)} className={cn('flex-1 py-2 text-xs font-semibold rounded-lg border transition-all', swpFrequency === o.key ? 'bg-brand text-white border-brand' : 'bg-white text-slate-500 border-surface-300 hover:border-brand-200')}>
+                                {o.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -318,8 +438,8 @@ export default function SIPShieldPage() {
                       <div className="flex-1 space-y-2">
                         <span className={cn('inline-block px-2 py-0.5 text-[10px] font-bold rounded-full uppercase', ev.type === 'investment' ? 'bg-emerald-200 text-emerald-800' : 'bg-red-200 text-red-800')}>{ev.type}</span>
                         <input type="text" value={ev.label} onChange={e => setLumpsumEvents(prev => prev.map(l => l.id === ev.id ? { ...l, label: e.target.value } : l))} className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-md bg-white text-slate-600" placeholder="Label" />
-                        <NumberInput label="Amount" value={ev.amount} onChange={v => setLumpsumEvents(prev => prev.map(l => l.id === ev.id ? { ...l, amount: v } : l))} prefix="Rs." step={50000} min={0} max={100000000} />
-                        <NumberInput label="At Year" value={ev.atYear} onChange={v => setLumpsumEvents(prev => prev.map(l => l.id === ev.id ? { ...l, atYear: v } : l))} suffix="" step={1} min={1} max={remainingTenure} />
+                        <NumberInput label="Amount" value={ev.amount} onChange={v => setLumpsumEvents(prev => prev.map(l => l.id === ev.id ? { ...l, amount: v } : l))} prefix="Rs." step={1000} min={0} max={2500000} />
+                        <NumberInput label="At Year" value={ev.atYear} onChange={v => setLumpsumEvents(prev => prev.map(l => l.id === ev.id ? { ...l, atYear: v } : l))} suffix="" step={1} min={1} max={maxRemainingTenure} />
                       </div>
                       <button onClick={() => setLumpsumEvents(prev => prev.filter(l => l.id !== ev.id))} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors mt-1" data-pdf-hide><Trash2 className="w-4 h-4" /></button>
                     </div>
@@ -328,7 +448,7 @@ export default function SIPShieldPage() {
               </div>
             </div>
 
-            {/* ═══════ RIGHT PANEL ═══════ */}
+            {/* RIGHT PANEL */}
             <div className="space-y-6">
 
               {/* Row 1: Magic Numbers */}
@@ -346,8 +466,8 @@ export default function SIPShieldPage() {
                   {/* Phase 1: SIP */}
                   <div className="relative rounded-xl border-2 border-emerald-300 bg-emerald-50 p-4">
                     <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 mb-2">Phase 1 &middot; SIP Phase</div>
-                    <div className="text-xs text-emerald-800 font-semibold mb-1">You invest Rs.{formatNumber(monthlySIP)}/mo for {sipDuration} years</div>
-                    <div className="text-[11px] text-emerald-600">You also pay {costLabel.toLowerCase()} from pocket</div>
+                    <div className="text-xs text-emerald-800 font-semibold mb-1">You invest Rs.{formatNumber(monthlySIP)}/{sipFreqLabel} for {sipDuration} years</div>
+                    <div className="text-[11px] text-emerald-600">You also pay {costDisplayLabel.toLowerCase()} from pocket</div>
                     <div className="hidden sm:flex absolute -right-4 top-1/2 -translate-y-1/2 z-10 w-6 h-6 rounded-full bg-emerald-500 items-center justify-center">
                       <ArrowRight className="w-3 h-3 text-white" />
                     </div>
@@ -375,7 +495,7 @@ export default function SIPShieldPage() {
                       Shield Active
                     </div>
                     <div className="text-[10px] font-bold uppercase tracking-wider text-teal-600 mb-2">Phase 3 &middot; Shield Active</div>
-                    <div className="text-xs text-teal-800 font-semibold mb-1">Corpus pays your {costLabel.toLowerCase()}</div>
+                    <div className="text-xs text-teal-800 font-semibold mb-1">Corpus pays your {costDisplayLabel.toLowerCase()}</div>
                     <div className="text-[11px] text-teal-600 font-bold">You pay NOTHING from pocket</div>
                   </div>
                 </div>
@@ -412,16 +532,19 @@ export default function SIPShieldPage() {
                     <div className="text-[11px] font-semibold text-red-600 mb-2">What You Paid From Pocket</div>
                     <div className="space-y-1.5 text-xs">
                       <div className="flex justify-between"><span className="text-slate-600">SIP Investment</span><span className="font-bold text-red-700">Rs. {fmtLakhs(result.totalSIPInvested)}</span></div>
-                      <div className="flex justify-between"><span className="text-slate-600">{costLabel} (pocket)</span><span className="font-bold text-red-700">Rs. {fmtLakhs(result.totalCostPaidFromPocket)}</span></div>
+                      <div className="flex justify-between"><span className="text-slate-600">{costDisplayLabel} (pocket)</span><span className="font-bold text-red-700">Rs. {fmtLakhs(result.totalCostPaidFromPocket)}</span></div>
                       <div className="border-t border-red-200 pt-1.5 flex justify-between font-bold"><span className="text-red-700">Total Out-of-Pocket</span><span className="text-red-800">Rs. {fmtLakhs(result.totalSIPInvested + result.totalCostPaidFromPocket)}</span></div>
                     </div>
                   </div>
                   <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-4">
                     <div className="text-[11px] font-semibold text-emerald-600 mb-2">What Your Corpus Delivered</div>
                     <div className="space-y-1.5 text-xs">
-                      <div className="flex justify-between"><span className="text-slate-600">{costLabel} (corpus)</span><span className="font-bold text-emerald-700">Rs. {fmtLakhs(result.totalCostPaidFromCorpus)}</span></div>
+                      <div className="flex justify-between"><span className="text-slate-600">{costDisplayLabel} (corpus)</span><span className="font-bold text-emerald-700">Rs. {fmtLakhs(result.totalCostPaidFromCorpus)}</span></div>
+                      {result.totalSWPWithdrawn > 0 && (
+                        <div className="flex justify-between"><span className="text-slate-600">SWP Withdrawn</span><span className="font-bold text-emerald-700">Rs. {fmtLakhs(result.totalSWPWithdrawn)}</span></div>
+                      )}
                       <div className="flex justify-between"><span className="text-slate-600">Remaining Corpus</span><span className="font-bold text-emerald-700">Rs. {fmtLakhs(result.finalCorpus)}</span></div>
-                      <div className="border-t border-emerald-200 pt-1.5 flex justify-between font-bold"><span className="text-emerald-700">Total Value Created</span><span className="text-emerald-800">Rs. {fmtLakhs(result.totalCostPaidFromCorpus + result.finalCorpus)}</span></div>
+                      <div className="border-t border-emerald-200 pt-1.5 flex justify-between font-bold"><span className="text-emerald-700">Total Value Created</span><span className="text-emerald-800">Rs. {fmtLakhs(result.totalCostPaidFromCorpus + result.totalSWPWithdrawn + result.finalCorpus)}</span></div>
                     </div>
                   </div>
                 </div>
@@ -431,6 +554,35 @@ export default function SIPShieldPage() {
                   <div className="text-xs text-slate-500 mt-1">{result.netBenefit >= 0 ? 'Your SIP strategy creates wealth beyond covering your costs' : 'Consider increasing SIP amount or duration'}</div>
                 </div>
               </div>
+
+              {/* Row 4b: Per-Cost Breakdown (if multiple costs) */}
+              {result.costBreakdown.length > 1 && (
+                <div className="card-base p-5">
+                  <h3 className="text-sm font-bold text-slate-800 mb-4">Per-Cost Breakdown</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-[11px]">
+                      <thead>
+                        <tr className="border-b-2 border-slate-200">
+                          <th className="py-2 px-1.5 text-left font-bold text-slate-600">Cost</th>
+                          <th className="py-2 px-1.5 text-right font-bold text-slate-600">Total Paid</th>
+                          <th className="py-2 px-1.5 text-right font-bold text-red-600">From Pocket</th>
+                          <th className="py-2 px-1.5 text-right font-bold text-emerald-600">From Corpus</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {result.costBreakdown.map((cb, i) => (
+                          <tr key={i} className="border-b border-slate-100">
+                            <td className="py-1.5 px-1.5 font-medium text-slate-700">{cb.label}</td>
+                            <td className="py-1.5 px-1.5 text-right font-mono">Rs. {fmtLakhs(cb.totalPaid)}</td>
+                            <td className="py-1.5 px-1.5 text-right font-mono text-red-600">Rs. {fmtLakhs(cb.paidFromPocket)}</td>
+                            <td className="py-1.5 px-1.5 text-right font-mono text-emerald-600">Rs. {fmtLakhs(cb.paidFromCorpus)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
 
               {/* Row 5: Year-by-Year Table */}
               <div className="card-base p-5">
@@ -449,6 +601,7 @@ export default function SIPShieldPage() {
                           <th className="py-2 px-1.5 text-right font-bold text-slate-600">SIP Inflow</th>
                           <th className="py-2 px-1.5 text-right font-bold text-red-600">Cost (Pocket)</th>
                           <th className="py-2 px-1.5 text-right font-bold text-emerald-600">Cost (Corpus)</th>
+                          {swpEnabled && <th className="py-2 px-1.5 text-right font-bold text-teal-600">SWP</th>}
                           <th className="py-2 px-1.5 text-right font-bold text-slate-600">Returns</th>
                           <th className="py-2 px-1.5 text-left font-bold text-slate-600">Lumpsum</th>
                           <th className="py-2 px-1.5 text-right font-bold text-slate-600">Year-End Corpus</th>
@@ -463,6 +616,7 @@ export default function SIPShieldPage() {
                             <td className="py-1.5 px-1.5 text-right font-mono">{row.sipInflow > 0 ? formatNumber(Math.round(row.sipInflow)) : '-'}</td>
                             <td className="py-1.5 px-1.5 text-right font-mono text-red-600">{row.costPaidFromPocket > 0 ? formatNumber(Math.round(row.costPaidFromPocket)) : '-'}</td>
                             <td className="py-1.5 px-1.5 text-right font-mono text-emerald-600">{row.costPaidFromCorpus > 0 ? formatNumber(Math.round(row.costPaidFromCorpus)) : '-'}</td>
+                            {swpEnabled && <td className="py-1.5 px-1.5 text-right font-mono text-teal-600">{row.swpWithdrawn > 0 ? formatNumber(Math.round(row.swpWithdrawn)) : '-'}</td>}
                             <td className="py-1.5 px-1.5 text-right font-mono">{formatNumber(Math.round(row.returnEarned))}</td>
                             <td className="py-1.5 px-1.5 text-[10px] truncate max-w-[100px]">{row.lumpsumEvent || '-'}</td>
                             <td className="py-1.5 px-1.5 text-right font-mono font-bold">{formatNumber(Math.round(row.yearEndCorpus))}</td>
