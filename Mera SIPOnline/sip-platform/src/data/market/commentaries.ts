@@ -2,6 +2,25 @@ import { MarketCommentary } from '@/types/market';
 
 export const marketCommentaries: MarketCommentary[] = [
   {
+    id: 'week-2026-03-24',
+    title: 'Fifth Straight Weekly Loss: Goldman Cuts India to Market Weight, Oil Near $108 & Rupee Breaches 94',
+    date: '2026-03-27',
+    weekRange: 'Mar 24 - Mar 27, 2026',
+    summary:
+      'Indian markets fell for a fifth consecutive week in a holiday-shortened 3-day week (Ram Navami closed markets on March 26), with the Nifty 50 declining 1.28% to 22,819 and Sensex falling 1.3% to 73,583. The week\'s defining shock was Goldman Sachs simultaneously slashing India\'s 2026 GDP forecast to 5.9% (from 7%), downgrading Indian equities from "overweight" to "market weight," and flagging a possible 50bps RBI rate hike — a rare triple-blow from a single global broker. Brent crude climbed to ~$108/barrel (6th consecutive weekly gain) as the Strait of Hormuz disruption showed no signs of resolution. The rupee breached 94 against the dollar for the first time ever (closing at 94.46), FIIs net sold ~₹8,315 crore for the week, and India VIX surged 8.77% to 26.80 on Thursday\'s sharp 2.09% single-day crash.',
+    keyPoints: [
+      'Fifth consecutive weekly loss in a 3-day trading week: Nifty 50 fell 1.28% to 22,819 and Sensex lost 1.3% to 73,583 (Ram Navami holiday on March 26). Thursday was devastating — Nifty crashed 2.09% (487 points) and Sensex plunged 1,690 points (-2.25%), with India VIX surging 8.77% to 26.80. Bank Nifty dropped 2.67% to close at 52,274.',
+      'Goldman Sachs triple-blow: slashed India\'s 2026 GDP forecast to 5.9% (from 7%), downgraded Indian equities from "overweight" to "market weight," and flagged a possible 50bps RBI rate hike to defend the rupee. Goldman now projects Brent crude averaging $115 in April, India\'s current account deficit widening to 2% of GDP, and CPI inflation rising to 4.6%.',
+      'Brent crude closed near $108/barrel on Thursday — 6th straight week of gains — driven by continued US-Iran conflict and near-total Strait of Hormuz disruption (~17.8 mbpd disrupted). A 10-day pause on US strikes was extended to April 6. India imports ~85% of its crude; sustained $100+ oil means higher inflation, a wider CAD, and mounting rupee pressure.',
+      'FIIs net sold ~₹8,315 crore for the week (March 24: -₹2,142 Cr; March 25: -₹1,806 Cr; March 27: -₹4,367 Cr). March FII outflows are on track to be the largest monthly outflow on record. DIIs absorbed every rupee — buying ~₹14,000 crore for the week, with March 25 DII buying alone at ₹5,430 Cr. Monthly SIP inflows remain ~₹30,000 Cr.',
+      'Rupee hit a new all-time low of 94.46 against the dollar, breaching the 94 barrier for the first time in history. The currency has depreciated ~4% YTD in 2026, adding to import costs and inflation. Gold MCX rose 1.53% to ₹1,44,690/10g, still down ~1% week-on-week as dollar strength and hawkish Fed signals capped upside.',
+      'Sectoral performance: Nifty IT +1.2% (lone bright spot — rupee depreciation benefits exporters). Heavy losers: Nifty Defence -4%, PSU Bank -3.9%, Bank Nifty -2.2%, Metals -2.2%, Energy -1.9%. Top weekly gainers: ONGC (+6.2%), L&T (+3.8%), Apollo Hospitals (+2.5%), HCL Tech (+2.3%). Top losers: Adani Enterprises (-5.4%), BEL (-5%), Coal India (-4.9%), Reliance Industries (-4.7%), Trent (-4.5%).',
+    ],
+    outlook: 'Bearish',
+    sipAdvice:
+      'Five weeks of consecutive losses, a Goldman Sachs downgrade, oil at $108, and a rupee at all-time lows — this is precisely the fear environment where SIP investors accumulate the most future wealth. Thursday\'s 2.09% crash felt alarming, but every dip in NAV means your next SIP installment buys more units at lower prices. Rupee cost averaging is working silently in your favour. DIIs bought ~₹14,000 crore this week — powered by your SIP contributions — fully absorbing record FII selling. The Nifty is now ~20% below its 52-week high. That is not a warning; that is a compounding opportunity. A Goldman downgrade affects institutional positioning, not the long-term earnings power of Indian businesses. Continue your SIPs without interruption. If you have surplus cash, consider a top-up alongside your regular instalment. Speak to your Relationship Manager before making any panic decisions — the only SIP mistake is stopping.',
+  },
+  {
     id: 'week-2026-03-17',
     title: 'Markets Survive Mid-Week Crash, End Flat as Fed Holds & Hormuz Escalates',
     date: '2026-03-21',
